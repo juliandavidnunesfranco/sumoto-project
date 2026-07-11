@@ -21,3 +21,7 @@ supabase/.temp/
 
 # pnpm
 .pnpm-store/
+
+# Claude
+.claude
+.remember
