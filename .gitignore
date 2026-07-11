@@ -1,0 +1,23 @@
+# dependencias
+node_modules/
+
+# builds
+.next/
+dist/
+out/
+
+# variables de entorno — NUNCA al repo
+.env
+.env.local
+.env*.local
+
+# supabase local (runtime, no config)
+supabase/.branches/
+supabase/.temp/
+
+# logs y sistema
+*.log
+.DS_Store
+
+# pnpm
+.pnpm-store/
