@@ -25,29 +25,28 @@ crédito con cuotas → dashboard cartera + asientos contables. Branding SUMOTO.
       Medusa v2 (links, workflows, subscribers, hooks) y receta de módulo nuevo
 - [x] Subagentes del proyecto en .claude/agents/: arquitecto-revisor, dev-dominio,
       dev-datos, dev-ui
+- [x] Módulo `clientes` COMPLETO (2026-07-11): migración con RLS verificada,
+      dominio puro (validarParaRegistro con reglas bancarias de Julián +
+      predicados esCedulaValida/esMayorDeEdad exportados para Zod/contracts),
+      EscanerCedulaMock + EntradaManual, caso de uso RegistrarCliente idempotente,
+      repo Supabase, module.ts. 25 tests.
+- [x] Módulo `originacion` COMPLETO (2026-07-11): migración (productos_credito
+      con reglas JSONB, solicitudes, decisiones inmutables con razones) + RLS
+      verificada; motor de decisión decidirSolicitud (score/revisión, mora buró,
+      ingreso mínimo, capacidad 35%, LTV — explicable siempre); shared/finance.ts
+      (amortización francesa EA→mensual en centavos, test de amortización total);
+      ExperianMock determinista por último dígito de cédula (0-1 niega, 2-3
+      revisión, 4-9 aprueba; penúltimo 9 = mora 90); caso de uso EvaluarSolicitud
+      (buró caído → REVISION_MANUAL, nunca niega en automático); repos Supabase;
+      module.ts. Total suite: 45 tests.
 
 ## En curso 🔨 (jornada sábado 2026-07-11)
-- [ ] Módulo `clientes` (cada numeral = una unidad commiteable):
-  - [x] 1. Migración SQL: schema clientes (tabla clientes, dinero en bigint
-        centavos), tiendas, perfiles (user→rol→tienda, enum 5 roles), RLS por
-        rol/tienda. Verificado: db reset limpio + 6 políticas en pg_policies.
-        Schema clientes expuesto en api.schemas (config.toml).
-  - [x] 2. Dominio: tipo DatosCiudadano, entidad Cliente, contratos
-        FuenteIdentidad y RepositorioClientes (TS puro).
-        ⚠ PENDIENTE: reglas de validarParaRegistro en domain/client.ts (las
-        escribe Julián con criterio bancario; hoy acepta todo)
-  - [x] 3. integrations/identidad: EscanerCedulaMock + EntradaManual
-  - [x] 4. Caso de uso RegistrarCliente (idempotente por cédula, emite
-        clientes.cliente.registrado) + 4 unit tests con fakes
-  - [x] 5. Infraestructura: RepositorioClientesSupabase + mapper
-  - [x] 6. module.ts + index.ts + bootstrap arrancarNucleo() (idempotente);
-        @sumo/core ahora exporta desde index.ts raíz (kernel + módulos).
-        Kernel: agregados result.ts (Resultado/exito/fallo) y token infra.supabase
+- [ ] Módulo `cartera` (siguiente): credito, cuota, pago, aplicacion_pago;
+      plan de pagos con shared/finance.ts (la cuota YA calculada por originación
+      debe coincidir); workflow desembolsarCredito; registrarPago con reparto
+      mora→interés→capital + unit tests
 
 ## Siguiente (en orden) 📋
-1. Módulo `originacion`: producto_credito (reglas JSONB), solicitud, decision,
-   motor de decisión (servicio de dominio + unit tests), caso de uso evaluarSolicitud,
-   mock Experian en integrations/experian
 2. Módulo `cartera`: credito, cuota, pago, aplicacion_pago; generación plan de pagos
    (amortización francesa); workflow desembolsarCredito; caso de uso registrarPago
    (reparto mora→interés→capital) + unit tests
@@ -88,4 +87,18 @@ crédito con cuotas → dashboard cartera + asientos contables. Branding SUMOTO.
 - 2026-07-11 (sábado): `perfiles` y `tiendas` en schema `public` (transversales:
   seguridad + organización), con helpers RLS `rol_actual()` / `tienda_actual()`.
   FKs módulo→public permitidas; la prohibición de FKs cruzadas es entre módulos.
+- 2026-07-11 (sábado): validación en 3 capas estilo Medusa v2 — Zod valida FORMA
+  en rutas del backoffice (schemas en packages/contracts, wrapper conValidacion);
+  dominio valida NEGOCIO en TS puro exportando predicados que Zod reutiliza con
+  .refine(); RLS valida ACCESO. Zod nunca entra al dominio. Detalle en CLAUDE.md.
+- 2026-07-11 (sábado): ingreso mínimo NO se valida al registrar cliente; es regla
+  del producto en el motor de decisión de originación (auditoría de Julián).
+- 2026-07-11 (sábado): matemática financiera compartida en packages/core/shared/
+  (TS puro, sin negocio de un solo módulo): originación estima la cuota y cartera
+  generará el plan con LA MISMA función — deben coincidir al centavo.
+- 2026-07-11 (sábado): referencias entre módulos 1:1 (solicitud→cliente) como
+  columna uuid SIN foreign key; las tablas de enlace en schema links quedan para
+  relaciones creadas por workflows (solicitud↔credito en el desembolso).
+- 2026-07-11 (sábado): sin reporte de buró la solicitud va a REVISION_MANUAL con
+  causa visible — nunca se niega ni aprueba en automático sin información.
 - (agregar nuevas decisiones aquí con fecha)

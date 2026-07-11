@@ -52,6 +52,16 @@ tipos del dominio (ReporteRiesgo, DatosCiudadano, AsientoContable).
   Fin de semana: solo (auth), (vendedor) y un (financiero) mínimo.
 - `apps/portal-cliente` — NO EXISTE AÚN. Fase futura. No crear.
 
+### Validación de entrada (decisión 2026-07-11 — patrón Medusa v2 adaptado)
+Tres capas, cada una valida lo suyo: (1) **forma** en el borde: schemas Zod en
+`packages/contracts`, aplicados en las rutas del backoffice vía wrapper
+`conValidacion(schema, handler)` — equivalente al validateAndTransformBody de
+Medusa v2 (en Next.js NO va en middleware.ts: ese es solo guarda de roles);
+(2) **negocio** en el dominio: TS puro, sin Zod (regla 4) — única fuente de
+verdad; reglas simples compartidas se exportan como predicados puros
+(`esCedulaValida`) y los schemas Zod las reutilizan con `.refine()`;
+(3) **acceso** en la base: RLS. La flecha de dependencia: contracts → core.
+
 ### Base de datos (supabase/)
 - Supabase local vía CLI (`pnpm supabase start`). Studio: 127.0.0.1:54323. API: 54321.
 - UN SCHEMA POR MÓDULO: `clientes`, `originacion`, `cartera`, `contabilidad`.

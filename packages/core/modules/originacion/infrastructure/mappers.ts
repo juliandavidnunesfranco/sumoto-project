@@ -1,0 +1,84 @@
+// Traducción filas SQL (snake_case) ↔ dominio. El JSONB reglas_decision usa
+// snake_case en la base y camelCase en el dominio: se traduce aquí.
+
+import type { ProductoCredito, ReglasDecision } from "../domain/credit-product";
+import type { EstadoSolicitud, Solicitud } from "../domain/loan-application";
+
+export interface FilaProducto {
+  id: string;
+  nombre: string;
+  tasa_ea: string | number; // numeric llega como string por PostgREST
+  plazo_min_meses: number;
+  plazo_max_meses: number;
+  reglas_decision: ReglasDecisionJson;
+  activo: boolean;
+}
+
+interface ReglasDecisionJson {
+  score_minimo: number;
+  score_revision?: number;
+  cuota_maxima_porcentaje_ingreso: number;
+  ltv_maximo: number;
+  ingreso_minimo_centavos?: number;
+  mora_maxima_dias?: number;
+}
+
+export function aProducto(fila: FilaProducto): ProductoCredito {
+  const r = fila.reglas_decision;
+  const reglas: ReglasDecision = {
+    scoreMinimo: r.score_minimo,
+    scoreRevision: r.score_revision,
+    cuotaMaximaPorcentajeIngreso: r.cuota_maxima_porcentaje_ingreso,
+    ltvMaximo: r.ltv_maximo,
+    ingresoMinimoCentavos: r.ingreso_minimo_centavos,
+    moraMaximaDias: r.mora_maxima_dias,
+  };
+  return {
+    id: fila.id,
+    nombre: fila.nombre,
+    tasaEA: Number(fila.tasa_ea),
+    plazoMinMeses: fila.plazo_min_meses,
+    plazoMaxMeses: fila.plazo_max_meses,
+    reglasDecision: reglas,
+    activo: fila.activo,
+  };
+}
+
+export interface FilaSolicitud {
+  id: string;
+  cliente_id: string;
+  producto_id: string;
+  tienda_id: string;
+  valor_moto_centavos: number;
+  cuota_inicial_centavos: number;
+  plazo_meses: number;
+  ingresos_declarados_centavos: number;
+  estado: EstadoSolicitud;
+}
+
+export function aSolicitud(fila: FilaSolicitud): Solicitud {
+  return {
+    id: fila.id,
+    clienteId: fila.cliente_id,
+    productoId: fila.producto_id,
+    tiendaId: fila.tienda_id,
+    valorMotoCentavos: Number(fila.valor_moto_centavos),
+    cuotaInicialCentavos: Number(fila.cuota_inicial_centavos),
+    plazoMeses: fila.plazo_meses,
+    ingresosDeclaradosCentavos: Number(fila.ingresos_declarados_centavos),
+    estado: fila.estado,
+  };
+}
+
+export function aFilaSolicitudNueva(s: Solicitud): Omit<FilaSolicitud, "id"> {
+  return {
+    cliente_id: s.clienteId,
+    producto_id: s.productoId,
+    tienda_id: s.tiendaId,
+    valor_moto_centavos: s.valorMotoCentavos,
+    cuota_inicial_centavos: s.cuotaInicialCentavos,
+    plazo_meses: s.plazoMeses,
+    ingresos_declarados_centavos: s.ingresosDeclaradosCentavos,
+    estado: s.estado,
+  };
+}

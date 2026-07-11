@@ -3,3 +3,5 @@
 export * from "./kernel/index";
 export * from "./bootstrap";
 export * from "./modules/clientes/index";
+export * from "./modules/originacion/index";
+export * from "./shared/finance";

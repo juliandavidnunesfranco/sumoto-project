@@ -50,19 +50,59 @@ export function crearCliente(
   });
 }
 
-// TODO(Julián): reglas de negocio para aceptar un registro de cliente.
-// Devuelve un mensaje por cada violación encontrada (vacío = datos aceptables).
-// Propuesta inicial a confirmar/ajustar con criterio bancario:
-//   - cédula: solo dígitos, longitud razonable para CC colombiana (¿6 a 10?)
-//   - nombres y apellidos no vacíos
-//   - mayor de 18 años si viene fechaNacimiento (¿debe ser obligatoria para crédito?)
-//   - ingresos declarados: entero >= 0 (¿mínimo para originar?)
-//   - tiendaId presente
+// Predicados puros: reutilizables por los schemas Zod de packages/contracts
+// vía .refine() — única fuente de verdad de estas reglas.
+
+export function esCedulaValida(cedula: string): boolean {
+  return /^\d{6,10}$/.test(cedula.trim());
+}
+
+export function esMayorDeEdad(
+  fechaNacimientoIso: string,
+  hoy: Date = new Date(),
+): boolean {
+  const nacimiento = new Date(`${fechaNacimientoIso}T00:00:00`);
+  if (Number.isNaN(nacimiento.getTime())) return false;
+  const cumple18 = new Date(nacimiento);
+  cumple18.setFullYear(cumple18.getFullYear() + 18);
+  return cumple18 <= hoy;
+}
+
+// Reglas de registro (validadas con Julián 2026-07-11). El ingreso mínimo NO va
+// aquí: es regla del producto en el motor de decisión de originación.
 export function validarParaRegistro(
   datos: DatosCiudadano,
   registro: DatosRegistro,
 ): string[] {
   const violaciones: string[] = [];
-  // --- implementar aquí ---
+
+  if (!esCedulaValida(datos.cedula)) {
+    violaciones.push("la cédula debe tener entre 6 y 10 dígitos, solo números");
+  }
+  if (datos.nombres.trim() === "") {
+    violaciones.push("los nombres son obligatorios");
+  }
+  if (datos.apellidos.trim() === "") {
+    violaciones.push("los apellidos son obligatorios");
+  }
+  if (
+    datos.fechaNacimiento !== undefined &&
+    !esMayorDeEdad(datos.fechaNacimiento)
+  ) {
+    violaciones.push("el cliente debe ser mayor de 18 años");
+  }
+  if (
+    registro.ingresosDeclaradosCentavos !== undefined &&
+    (!Number.isInteger(registro.ingresosDeclaradosCentavos) ||
+      registro.ingresosDeclaradosCentavos < 0)
+  ) {
+    violaciones.push(
+      "los ingresos declarados deben ser un entero en centavos, mayor o igual a cero",
+    );
+  }
+  if (registro.tiendaId.trim() === "") {
+    violaciones.push("la tienda que registra es obligatoria");
+  }
+
   return violaciones;
 }

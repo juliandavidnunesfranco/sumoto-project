@@ -3,6 +3,8 @@
 export type { DatosCiudadano, FuenteDeDatos } from "./domain/citizen-data";
 export {
   crearCliente,
+  esCedulaValida,
+  esMayorDeEdad,
   validarParaRegistro,
   type Cliente,
   type DatosRegistro,

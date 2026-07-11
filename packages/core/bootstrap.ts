@@ -4,6 +4,7 @@
 import { arrancarKernel } from "./kernel/module-loader";
 import { registrar, TOKENS } from "./kernel/container";
 import { moduloClientes } from "./modules/clientes/index";
+import { moduloOriginacion } from "./modules/originacion/index";
 
 let arrancado = false;
 
@@ -11,6 +12,6 @@ export function arrancarNucleo(deps: { supabase: object }): void {
   // Next.js puede evaluar el módulo varias veces (HMR, rutas): arranque idempotente
   if (arrancado) return;
   registrar(TOKENS.supabase, deps.supabase);
-  arrancarKernel([moduloClientes]);
+  arrancarKernel([moduloClientes, moduloOriginacion]);
   arrancado = true;
 }
