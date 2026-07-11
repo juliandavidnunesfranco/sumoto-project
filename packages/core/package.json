@@ -1,16 +1,26 @@
 {
   "name": "@sumo/core",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "description": "Núcleo de negocio SUMOTO: kernel, módulos e integraciones",
+  "private": true,
+  "type": "module",
+  "main": "./index.ts",
+  "exports": {
+    ".": "./index.ts",
+    "./kernel": "./kernel/index.ts"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "license": "UNLICENSED",
   "packageManager": "pnpm@10.32.1",
   "dependencies": {
+    "@supabase/supabase-js": "^2.110.2",
     "node-dependency-injection": "^4.2.0"
+  },
+  "devDependencies": {
+    "typescript": "^5",
+    "vitest": "^3"
   }
 }

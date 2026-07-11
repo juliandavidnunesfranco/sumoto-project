@@ -61,6 +61,11 @@ tipos del dominio (ReporteRiesgo, DatosCiudadano, AsientoContable).
   PROHIBIDO configurar por clicks en Studio: el repo es la verdad, Studio es la ventana.
 - RLS por rol/tienda en todas las tablas con datos de negocio. Tabla `perfiles`
   (user_id → rol → tienda_id) es la base del middleware y de las políticas.
+- `perfiles` y `tiendas` viven en el schema `public` (decisión 2026-07-11): son
+  transversales (seguridad y estructura organizacional), no pertenecen a ningún
+  módulo. Ahí también las funciones helper de RLS (`rol_actual()`, `tienda_actual()`).
+  FKs desde schemas de módulo hacia `public` SÍ se permiten (la prohibición de FKs
+  cruzadas es ENTRE módulos); entre módulos, tablas de enlace en schema `links`.
 
 ## Reglas de conexión (LA CONSTITUCIÓN — verificar en cada PR/commit)
 
@@ -121,7 +126,9 @@ tipos del dominio (ReporteRiesgo, DatosCiudadano, AsientoContable).
 
 ## Estado y memoria
 
-- Estado actual y próximos pasos: **docs/ESTADO.md** — LEERLO AL INICIAR CADA SESIÓN
+- Estado actual y próximos pasos: **docs/STATUS.md** — LEERLO AL INICIAR CADA SESIÓN
   y ACTUALIZARLO AL TERMINAR (qué se hizo, qué quedó a medias, decisiones tomadas).
+- Estructura del monorepo, topología de despliegue y patrones Medusa v2:
+  **docs/ARCHITECTURE.md**.
 - Decisiones de arquitectura nuevas: agregarlas a este archivo, sección Arquitectura.
 - Si algo del contexto contradice el código real, el código manda — y se corrige aquí.

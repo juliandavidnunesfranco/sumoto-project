@@ -4,6 +4,8 @@ import { ContainerBuilder } from "node-dependency-injection";
 // Tokens: los "nombres en el directorio". Un solo lugar para evitar strings mágicos.
 export const TOKENS = {
   eventBus: "kernel.eventBus",
+  // infraestructura compartida (la registra el bootstrap antes de arrancar módulos)
+  supabase: "infra.supabase",
   // módulos (los irán registrando sus module.ts)
   clientesService: "modulo.clientes.service",
   originacionService: "modulo.originacion.service",

@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // @sumo/core se consume como TS sin compilar: Next debe transpilarlo
+  transpilePackages: ["@sumo/core"],
 };
 
 export default nextConfig;
