@@ -39,19 +39,32 @@ crédito con cuotas → dashboard cartera + asientos contables. Branding SUMOTO.
       revisión, 4-9 aprueba; penúltimo 9 = mora 90); caso de uso EvaluarSolicitud
       (buró caído → REVISION_MANUAL, nunca niega en automático); repos Supabase;
       module.ts. Total suite: 45 tests.
+- [x] Módulo `cartera` COMPLETO (2026-07-11): migración (creditos con snapshot de
+      condiciones, cuotas con acumulados por componente, pagos, aplicaciones_pago,
+      links.solicitud_credito — primer Module Link real) + RLS verificada;
+      generarPlanDePagos con LA MISMA cuotaMensualFrancesaCentavos de originación
+      (test: cuota del plan === cuota prometida; capital amortiza exacto);
+      repartirPago mora→interés→capital cuota más antigua primero (mora devengada
+      por días vencidos sobre capital pendiente, tasa EA→diaria efectiva; test de
+      propiedad: conservación del centavo en 50 escenarios); workflow
+      DesembolsarCredito con compensación verificada en 2 puntos de falla;
+      RegistrarPago emite cartera.pago.registrado con totales por componente
+      (insumo contable); subscriber en originación marca solicitud desembolsada.
+      Total suite: 71 tests.
 
 ## En curso 🔨 (jornada sábado 2026-07-11)
-- [ ] Módulo `cartera` (siguiente): credito, cuota, pago, aplicacion_pago;
-      plan de pagos con shared/finance.ts (la cuota YA calculada por originación
-      debe coincidir); workflow desembolsarCredito; registrarPago con reparto
-      mora→interés→capital + unit tests
+- [ ] Módulo `contabilidad` (siguiente): subscribers a cartera.credito.desembolsado
+      y cartera.pago.registrado; tabla asientos; adaptador mock World Office
+
+## Backlog no bloqueante 📥
+- Regla de edad por producto (18–70) en reglas_decision JSONB del motor
+  (auditoría 2026-07-11)
+- Mover tasa_mora_ea al producto de crédito (hoy es snapshot en el crédito y
+  llega como parámetro del comando de desembolso)
 
 ## Siguiente (en orden) 📋
-2. Módulo `cartera`: credito, cuota, pago, aplicacion_pago; generación plan de pagos
-   (amortización francesa); workflow desembolsarCredito; caso de uso registrarPago
-   (reparto mora→interés→capital) + unit tests
-3. Módulo `contabilidad`: subscribers a credito.desembolsado y cartera.pago.registrado;
-   tabla asientos; adaptador mock World Office
+3. Módulo `contabilidad`: subscribers a cartera.credito.desembolsado y
+   cartera.pago.registrado; tabla asientos; adaptador mock World Office
 4. Backoffice: (auth) login + middleware por rol + tabla perfiles seed;
    (vendedor) formulario solicitud con botón "Escanear cédula" (mock) + simulador +
    pantalla resultado decisión; (financiero) dashboard cartera básico
@@ -101,4 +114,12 @@ crédito con cuotas → dashboard cartera + asientos contables. Branding SUMOTO.
   relaciones creadas por workflows (solicitud↔credito en el desembolso).
 - 2026-07-11 (sábado): sin reporte de buró la solicitud va a REVISION_MANUAL con
   causa visible — nunca se niega ni aprueba en automático sin información.
+- 2026-07-11 (sábado): la mora NO se almacena — se devenga al calcular, por días
+  vencidos sobre el CAPITAL pendiente de la cuota, con tasa EA→diaria efectiva
+  ((1+EA)^(1/365)-1). Solo se persiste la mora pagada. El crédito guarda snapshot
+  de tasas al desembolso (el producto puede cambiar después sin afectar créditos vivos).
+- 2026-07-11 (sábado): el sobrante de un pago (sobrepago) se registra en el pago,
+  no se aplica a nada en automático — decisión de negocio pendiente (¿abono a
+  capital? ¿saldo a favor?). Convención de eventos con prefijo de módulo:
+  cartera.credito.desembolsado (no credito.desembolsado a secas).
 - (agregar nuevas decisiones aquí con fecha)

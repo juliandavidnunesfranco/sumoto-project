@@ -55,6 +55,18 @@ export class RepositorioSolicitudesSupabase implements RepositorioSolicitudes {
     return aSolicitud(data);
   }
 
+  async actualizarEstado(
+    solicitudId: string,
+    estado: Solicitud["estado"],
+  ): Promise<void> {
+    const { error } = await this.supabase
+      .schema("originacion")
+      .from("solicitudes")
+      .update({ estado })
+      .eq("id", solicitudId);
+    if (error) throw new Error(`[originacion] error actualizando estado: ${error.message}`);
+  }
+
   async guardarDecision(
     solicitudId: string,
     decision: Decision,

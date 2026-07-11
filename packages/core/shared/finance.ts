@@ -8,6 +8,11 @@ export function tasaMensualDesdeEA(tasaEA: number): number {
   return Math.pow(1 + tasaEA, 1 / 12) - 1;
 }
 
+// Tasa efectiva anual → tasa efectiva diaria (para interés moratorio por días vencidos)
+export function tasaDiariaDesdeEA(tasaEA: number): number {
+  return Math.pow(1 + tasaEA, 1 / 365) - 1;
+}
+
 // Cuota fija de amortización francesa: M·i / (1 - (1+i)^-n), redondeada al centavo.
 export function cuotaMensualFrancesaCentavos(
   montoCentavos: number,

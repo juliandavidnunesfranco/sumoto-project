@@ -12,4 +12,5 @@ export interface RepositorioProductos {
 export interface RepositorioSolicitudes {
   guardar(solicitud: Solicitud): Promise<Solicitud>;
   guardarDecision(solicitudId: string, decision: Decision, reporteRiesgo: unknown): Promise<void>;
+  actualizarEstado(solicitudId: string, estado: Solicitud["estado"]): Promise<void>;
 }

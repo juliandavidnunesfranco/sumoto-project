@@ -10,6 +10,8 @@ export const TOKENS = {
   clientesService: "modulo.clientes.service",
   originacionService: "modulo.originacion.service",
   carteraService: "modulo.cartera.service",
+  desembolsarCredito: "modulo.cartera.desembolsarCredito",
+  registrarPago: "modulo.cartera.registrarPago",
   contabilidadService: "modulo.contabilidad.service",
   // integraciones (intercambiables: mock hoy, real mañana)
   consultorRiesgo: "integracion.riesgo", // Experian

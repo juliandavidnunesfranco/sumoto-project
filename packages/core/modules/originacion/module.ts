@@ -12,6 +12,7 @@ import {
   RepositorioProductosSupabase,
   RepositorioSolicitudesSupabase,
 } from "./infrastructure/supabase-repositories";
+import { alDesembolsarCredito } from "./subscribers/on-credit-disbursed";
 
 export const moduloOriginacion: ModuleDefinition = {
   nombre: "originacion",
@@ -33,5 +34,17 @@ export const moduloOriginacion: ModuleDefinition = {
         bus,
       ),
     );
+  },
+
+  suscripciones(container: ContainerBuilder) {
+    const supabase = container.get(TOKENS.supabase) as SupabaseClient;
+    return [
+      {
+        evento: "cartera.credito.desembolsado",
+        manejador: alDesembolsarCredito(
+          new RepositorioSolicitudesSupabase(supabase),
+        ),
+      },
+    ];
   },
 };

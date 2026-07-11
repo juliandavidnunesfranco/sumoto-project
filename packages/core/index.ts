@@ -4,4 +4,6 @@ export * from "./kernel/index";
 export * from "./bootstrap";
 export * from "./modules/clientes/index";
 export * from "./modules/originacion/index";
+export * from "./modules/cartera/index";
 export * from "./shared/finance";
+export * from "./shared/dates";
