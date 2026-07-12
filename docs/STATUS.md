@@ -58,13 +58,41 @@ crédito con cuotas → dashboard cartera + asientos contables. Branding SUMOTO.
       anticipos); subscribers a los 2 eventos de cartera; WorldOfficeMock tras
       contrato SistemaContable; asiento se persiste SIEMPRE y despacho fallido
       queda 'fallido' para reintento. CORE COMPLETO. Total suite: 83 tests.
+- [x] Ajustes pre-UI (2026-07-12): sagas en RegistrarPago/EvaluarSolicitud,
+      fachadas por módulo, MotorDecision tras token, service_role documentado.
+      Suite: 85 tests.
+- [x] Reporteria (2026-07-12): schema con 4 vistas security_invoker —
+      cartera_por_credito (saldo+días mora+franja), mora_por_franja
+      (0-30/31-60/61-90/90+), resumen_cartera (ICV), recaudo_mensual (por
+      componente). Verificadas con datos reales del seed.
+- [x] seed.sql (2026-07-12): 2 tiendas, 5 usuarios por rol (password sumoto123),
+      2 productos con reglas JSONB, 18 créditos con plan francés e historias:
+      9 al día + moras en las 4 franjas. ICV demo: ~58%.
+- [x] @sumo/contracts (2026-07-12): schemas Zod de frontera (registrar cliente
+      discriminado escaner/manual, evaluar solicitud) reutilizando predicados
+      del dominio con .refine(); DTOs de respuesta. Las pantallas jamás
+      importan de domain/.
+- [x] Backoffice UI (2026-07-12): proxy.ts (¡Next 16 renombró middleware→proxy!)
+      con guarda de roles por prefijo; (auth)/login con branding SUMOTO;
+      (vendedor)/solicitudes/nueva — escáner mock + decisión en vivo con razones
+      y cuota; (financiero)/cartera — tarjetas resumen + ICV, barras de mora por
+      franja, recaudo mensual por componente; rutas API delgadas (productos,
+      clientes, evaluar) con exigirRol + conValidacion. Build de producción OK.
+- [x] Bug de kernel corregido (2026-07-12): node-dependency-injection exige
+      definición synthetic antes de set() — nuevo registrarServicio() en
+      container.ts usado por los 4 module.ts + test de regresión con container
+      real. Los tests unitarios no lo atrapaban porque los módulos usan fakes.
+- [x] E2E de flujo completo contra Supabase local (flow.e2e.test.ts, se corre
+      con `pnpm --filter @sumo/core test:e2e`): escaneo → APROBADO → desembolso
+      (24 cuotas, cuota == la prometida) → pago → solicitud desembolsada por
+      subscriber + 2 asientos cuadrados despachados a WO mock + link creado.
+      PASÓ COMPLETO. Suite unitaria: 86 tests.
 
-## En curso 🔨 (jornada sábado 2026-07-11)
-- [ ] Backoffice: (auth) login + middleware por rol + seed perfiles;
-      (vendedor) solicitud con "Escanear cédula" (mock) + simulador + resultado
-      decisión; (financiero) dashboard cartera básico. ANTES: decidir estrategia
-      de cliente Supabase en el core (service_role vs JWT del usuario — ver
-      observaciones de revisión)
+## En curso 🔨
+- [ ] Recorrido de demo en navegador: `pnpm --filter backoffice dev` →
+      login vendedor@sumoto.co / sumoto123 → /solicitudes/nueva (cédula
+      terminada en 4-9 aprueba, 2-3 revisión, 0-1 niega) → login
+      financiero@sumoto.co → /cartera. Pulir detalles visuales que aparezcan.
 
 ## Backlog no bloqueante 📥
 - Regla de edad por producto (18–70) en reglas_decision JSONB del motor
@@ -145,4 +173,17 @@ crédito con cuotas → dashboard cartera + asientos contables. Branding SUMOTO.
   caliente: los eventos de cartera ahora transportan la FECHA DEL HECHO
   (fechaDesembolso/fechaPago) y los asientos contables la usan — un pago
   retroactivo ya no genera asiento con fecha del servidor.
+- 2026-07-12 (domingo): 4 ajustes pre-UI decididos con Julián (1a,2a,3a,4a):
+  service_role en el core (backlog JWT por request); RegistrarPago y
+  EvaluarSolicitud convertidos a workflows con compensación (+2 tests de
+  compensación); fachada por módulo estilo Medusa (UN servicio por token);
+  MotorDecision tras contrato+token DI (habilita modo sombra). Aprendizaje de
+  saga: el kernel solo compensa pasos completados — un paso que falla a mitad
+  restaura lo suyo antes de relanzar (aplicarACuotas). Suite: 85 tests.
+- 2026-07-12 (domingo): plan de cuentas default (bancos) para la demo; diseño
+  futuro registrado: plantillas contables por canal de financiación (fondeo
+  propio = cartera contra ingreso por venta, autofinanciación SUMOTO).
+- 2026-07-12 (domingo): Next 16 renombró middleware.ts → proxy.ts (función
+  exportada `proxy`); la guarda de roles vive ahí. Los *.e2e.test.ts se excluyen
+  de la suite normal (requieren Supabase local): vitest.e2e.config.ts.
 - (agregar nuevas decisiones aquí con fecha)

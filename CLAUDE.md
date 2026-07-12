@@ -16,6 +16,20 @@ decisión automática → crédito con plan de cuotas → dashboard de cartera +
 Las fronteras entre módulos son lógicas (imports prohibidos, eventos), no físicas.
 Diseñado para poder extraer módulos a servicios en el futuro sin reescribir.
 
+### Convenciones estilo Medusa v2 (decisión 2026-07-12)
+- **Fachada por módulo:** cada módulo expone UN servicio (ClientesService,
+  OriginacionService, CarteraService, ContabilidadService) bajo su token
+  `modulo.<nombre>.service`. Los casos de uso viven detrás de la fachada.
+- **Toda mutación multi-paso es un workflow con compensación** (desembolso,
+  registro de pago, evaluación). Regla de saga: el kernel solo compensa pasos
+  COMPLETADOS — un paso que puede fallar a mitad limpia lo suyo antes de relanzar.
+- **Motor de decisión tras contrato `MotorDecision`** (token
+  `modulo.originacion.motorDecision`): intercambiable para motor v2/ML o "modo
+  sombra" (correr dos motores y comparar) sin tocar el caso de uso.
+- **Cliente Supabase del core: SERVICE_ROLE del lado servidor.** La seguridad va
+  en dos puertas: middleware de roles + validación rol/tienda en rutas API; RLS
+  protege el acceso directo a PostgREST. Backlog: cliente por request con JWT.
+
 ### Kernel (packages/core/kernel/) — YA IMPLEMENTADO, no modificar sin razón fuerte
 - `container.ts` — DI con node-dependency-injection. Tokens centralizados en TOKENS.
 - `event-bus.ts` — pub/sub en memoria. Convención de eventos: `modulo.entidad.hecho`

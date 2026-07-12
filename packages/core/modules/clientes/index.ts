@@ -15,4 +15,5 @@ export {
   RegistrarCliente,
   type ComandoRegistrarCliente,
 } from "./application/register-client";
+export { ClientesService } from "./service";
 export { moduloClientes } from "./module";

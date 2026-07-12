@@ -61,6 +61,8 @@ class PagosEnMemoria implements RepositorioPagos {
   pagos: Pago[] = [];
   aplicaciones: AplicacionPago[] = [];
   acumulados = new Map<string, AcumuladosCuota>();
+  fallarAcumuladosEnLlamada = 0; // 0 = nunca; N = falla en la N-ésima llamada
+  private llamadasAcumulados = 0;
 
   async guardar(pago: Pago, aplicaciones: AplicacionPago[]) {
     const guardado = { ...pago, id: `pago-${this.pagos.length + 1}` };
@@ -69,7 +71,14 @@ class PagosEnMemoria implements RepositorioPagos {
     return guardado;
   }
   async actualizarAcumulados(cuotaId: string, acumulados: AcumuladosCuota) {
+    this.llamadasAcumulados += 1;
+    if (this.llamadasAcumulados === this.fallarAcumuladosEnLlamada) {
+      throw new Error("db caída actualizando cuota");
+    }
     this.acumulados.set(cuotaId, acumulados);
+  }
+  async eliminar(pagoId: string) {
+    this.pagos = this.pagos.filter((p) => p.id !== pagoId);
   }
 }
 
@@ -127,6 +136,32 @@ describe("RegistrarPago", () => {
       );
       expect(total + resultado.valor.pago.sobranteCentavos).toBe(26_000_000);
     }
+  });
+
+  it("si falla actualizar cuotas, COMPENSA: el pago se elimina, acumulados restaurados, sin evento", async () => {
+    const errorSilenciado = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { casoDeUso, pagos, bus } = armar(CREDITO, cuotasDelPlan());
+    // pago que toca 2 cuotas: la primera se actualiza bien, la segunda falla
+    pagos.fallarAcumuladosEnLlamada = 2;
+    const oyente = vi.fn();
+    bus.on("cartera.pago.registrado", oyente);
+
+    const resultado = await casoDeUso.ejecutar({
+      creditoId: "cred-1",
+      montoCentavos: 50_000_000, // cubre ambas cuotas
+      fechaPago: "2026-02-15",
+    });
+
+    expect(resultado.ok).toBe(false);
+    expect(pagos.pagos).toHaveLength(0); // pago compensado
+    // la cuota 1 (única tocada con éxito) volvió a sus acumulados originales
+    expect(pagos.acumulados.get("cuo-1")).toMatchObject({
+      capitalPagadoCentavos: 0,
+      interesPagadoCentavos: 0,
+      moraPagadaCentavos: 0,
+    });
+    expect(oyente).not.toHaveBeenCalled();
+    errorSilenciado.mockRestore();
   });
 
   it("rechaza crédito inexistente, cancelado, sin saldo, y montos inválidos", async () => {

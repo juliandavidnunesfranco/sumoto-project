@@ -13,4 +13,7 @@ export interface RepositorioSolicitudes {
   guardar(solicitud: Solicitud): Promise<Solicitud>;
   guardarDecision(solicitudId: string, decision: Decision, reporteRiesgo: unknown): Promise<void>;
   actualizarEstado(solicitudId: string, estado: Solicitud["estado"]): Promise<void>;
+  // compensaciones del workflow de evaluación
+  eliminar(solicitudId: string): Promise<void>;
+  eliminarDecisiones(solicitudId: string): Promise<void>;
 }

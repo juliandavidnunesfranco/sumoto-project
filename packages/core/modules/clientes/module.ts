@@ -2,7 +2,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ContainerBuilder } from "node-dependency-injection";
-import { TOKENS } from "../../kernel/container";
+import { registrarServicio, TOKENS } from "../../kernel/container";
 import type { EventBus } from "../../kernel/event-bus";
 import type { ModuleDefinition } from "../../kernel/module-def";
 import {
@@ -11,6 +11,7 @@ import {
 } from "../../integrations/identidad/index";
 import { RegistrarCliente } from "./application/register-client";
 import { RepositorioClientesSupabase } from "./infrastructure/supabase-client-repository";
+import { ClientesService } from "./service";
 
 export const moduloClientes: ModuleDefinition = {
   nombre: "clientes",
@@ -24,9 +25,10 @@ export const moduloClientes: ModuleDefinition = {
     // lista cuando llegue su documentación (OCP)
     const fuentes = [new EscanerCedulaMock(), new EntradaManual()];
 
-    container.set(
+    registrarServicio(
+      container,
       TOKENS.clientesService,
-      new RegistrarCliente(fuentes, repositorio, bus),
+      new ClientesService(new RegistrarCliente(fuentes, repositorio, bus)),
     );
   },
 };

@@ -7,12 +7,13 @@ export const TOKENS = {
   // infraestructura compartida (la registra el bootstrap antes de arrancar módulos)
   supabase: "infra.supabase",
   // módulos (los irán registrando sus module.ts)
+  // fachadas: UN servicio por módulo (patrón Medusa v2)
   clientesService: "modulo.clientes.service",
   originacionService: "modulo.originacion.service",
   carteraService: "modulo.cartera.service",
-  desembolsarCredito: "modulo.cartera.desembolsarCredito",
-  registrarPago: "modulo.cartera.registrarPago",
   contabilidadService: "modulo.contabilidad.service",
+  // servicios de dominio intercambiables
+  motorDecision: "modulo.originacion.motorDecision",
   // integraciones (intercambiables: mock hoy, real mañana)
   consultorRiesgo: "integracion.riesgo", // Experian
   fuenteIdentidad: "integracion.identidad", // escáner de cédula del tercero
@@ -31,9 +32,23 @@ export function getContainer(): ContainerBuilder {
   return builder;
 }
 
-// Azúcar para registrar una instancia ya construida bajo un token.
+// Registrar una instancia ya construida bajo un token en UN container dado.
+// node-dependency-injection exige declarar el servicio como synthetic antes
+// de poder inyectar la instancia con set() (semántica estilo Symfony).
+export function registrarServicio(
+  container: ContainerBuilder,
+  token: Token,
+  instancia: object,
+): void {
+  if (!container.hasDefinition(token)) {
+    container.register(token).synthetic = true;
+  }
+  container.set(token, instancia);
+}
+
+// Azúcar sobre el container singleton.
 export function registrar(token: Token, instancia: object): void {
-  getContainer().set(token, instancia);
+  registrarServicio(getContainer(), token, instancia);
 }
 
 // Azúcar para resolver con tipo: const cartera = resolver<CarteraService>(TOKENS.carteraService)

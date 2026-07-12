@@ -139,6 +139,16 @@ export class RepositorioPagosSupabase implements RepositorioPagos {
     return { ...pago, id: data.id };
   }
 
+  async eliminar(pagoId: string): Promise<void> {
+    // las aplicaciones caen por on delete cascade
+    const { error } = await this.supabase
+      .schema("cartera")
+      .from("pagos")
+      .delete()
+      .eq("id", pagoId);
+    if (error) throw new Error(`[cartera] error eliminando pago: ${error.message}`);
+  }
+
   async actualizarAcumulados(
     cuotaId: string,
     acumulados: AcumuladosCuota,

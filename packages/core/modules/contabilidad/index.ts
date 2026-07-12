@@ -20,4 +20,5 @@ export type {
   RepositorioAsientos,
 } from "./domain/repositories";
 export { RegistrarAsiento } from "./application/record-entry";
+export { ContabilidadService } from "./service";
 export { moduloContabilidad } from "./module";

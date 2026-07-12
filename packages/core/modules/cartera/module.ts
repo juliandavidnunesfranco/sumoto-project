@@ -2,7 +2,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ContainerBuilder } from "node-dependency-injection";
-import { TOKENS } from "../../kernel/container";
+import { registrarServicio, TOKENS } from "../../kernel/container";
 import type { EventBus } from "../../kernel/event-bus";
 import type { ModuleDefinition } from "../../kernel/module-def";
 import { DesembolsarCredito } from "./application/disburse-credit";
@@ -11,6 +11,7 @@ import {
   RepositorioCreditosSupabase,
   RepositorioPagosSupabase,
 } from "./infrastructure/supabase-repositories";
+import { CarteraService } from "./service";
 
 export const moduloCartera: ModuleDefinition = {
   nombre: "cartera",
@@ -22,7 +23,13 @@ export const moduloCartera: ModuleDefinition = {
     const creditos = new RepositorioCreditosSupabase(supabase);
     const pagos = new RepositorioPagosSupabase(supabase);
 
-    container.set(TOKENS.desembolsarCredito, new DesembolsarCredito(creditos, bus));
-    container.set(TOKENS.registrarPago, new RegistrarPago(creditos, pagos, bus));
+    registrarServicio(
+      container,
+      TOKENS.carteraService,
+      new CarteraService(
+        new DesembolsarCredito(creditos, bus),
+        new RegistrarPago(creditos, pagos, bus),
+      ),
+    );
   },
 };

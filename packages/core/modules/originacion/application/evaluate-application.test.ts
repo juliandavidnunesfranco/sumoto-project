@@ -3,6 +3,7 @@ import { EventBus } from "../../../kernel/event-bus";
 import { exito, fallo, type Resultado } from "../../../kernel/result";
 import type { ProductoCredito } from "../domain/credit-product";
 import type { Decision } from "../domain/decision";
+import { MotorDecisionV1 } from "../domain/decision-engine";
 import type { Solicitud } from "../domain/loan-application";
 import type {
   RepositorioProductos,
@@ -58,6 +59,7 @@ class ProductosFijos implements RepositorioProductos {
 class SolicitudesEnMemoria implements RepositorioSolicitudes {
   guardadas: Solicitud[] = [];
   decisiones: Decision[] = [];
+  fallarEnDecision = false;
 
   async guardar(solicitud: Solicitud) {
     const guardada = { ...solicitud, id: `sol-${this.guardadas.length + 1}` };
@@ -65,7 +67,15 @@ class SolicitudesEnMemoria implements RepositorioSolicitudes {
     return guardada;
   }
   async guardarDecision(_solicitudId: string, decision: Decision) {
+    if (this.fallarEnDecision) throw new Error("db caída guardando decisión");
     this.decisiones.push(decision);
+  }
+  async actualizarEstado() {}
+  async eliminar(solicitudId: string) {
+    this.guardadas = this.guardadas.filter((s) => s.id !== solicitudId);
+  }
+  async eliminarDecisiones() {
+    this.decisiones = [];
   }
 }
 
@@ -83,6 +93,7 @@ function armar(riesgo: ConsultorRiesgo) {
     new ProductosFijos(),
     solicitudes,
     riesgo,
+    new MotorDecisionV1(),
     bus,
   );
   return { casoDeUso, solicitudes, bus };
@@ -131,6 +142,21 @@ describe("EvaluarSolicitud", () => {
 
     expect(resultado.ok).toBe(false);
     expect(solicitudes.guardadas).toHaveLength(0);
+  });
+
+  it("si falla guardar la decisión, COMPENSA: la solicitud se elimina y no hay evento", async () => {
+    const errorSilenciado = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { casoDeUso, solicitudes, bus } = armar(new RiesgoFijo(exito(REPORTE_SANO)));
+    solicitudes.fallarEnDecision = true;
+    const oyente = vi.fn();
+    bus.on("originacion.solicitud.evaluada", oyente);
+
+    const resultado = await casoDeUso.ejecutar(COMANDO);
+
+    expect(resultado.ok).toBe(false);
+    expect(solicitudes.guardadas).toHaveLength(0); // compensado
+    expect(oyente).not.toHaveBeenCalled();
+    errorSilenciado.mockRestore();
   });
 
   it("rechaza solicitud incoherente con el producto (plazo fuera de rango)", async () => {

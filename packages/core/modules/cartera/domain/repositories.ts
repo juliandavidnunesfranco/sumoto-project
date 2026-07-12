@@ -25,4 +25,6 @@ export interface AcumuladosCuota {
 export interface RepositorioPagos {
   guardar(pago: Pago, aplicaciones: AplicacionPago[]): Promise<Pago>;
   actualizarAcumulados(cuotaId: string, acumulados: AcumuladosCuota): Promise<void>;
+  // compensación del workflow de pago (borra también sus aplicaciones)
+  eliminar(pagoId: string): Promise<void>;
 }

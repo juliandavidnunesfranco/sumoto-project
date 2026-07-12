@@ -14,7 +14,11 @@ export {
   type Solicitud,
 } from "./domain/loan-application";
 export type { Decision, ResultadoDecision } from "./domain/decision";
-export { decidirSolicitud } from "./domain/decision-engine";
+export {
+  decidirSolicitud,
+  MotorDecisionV1,
+  type MotorDecision,
+} from "./domain/decision-engine";
 export type {
   RepositorioProductos,
   RepositorioSolicitudes,
@@ -24,4 +28,5 @@ export {
   type ComandoEvaluarSolicitud,
   type SolicitudEvaluada,
 } from "./application/evaluate-application";
+export { OriginacionService } from "./service";
 export { moduloOriginacion } from "./module";

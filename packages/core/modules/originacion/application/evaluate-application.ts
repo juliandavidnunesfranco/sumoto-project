@@ -1,10 +1,13 @@
 // Caso de uso estrella: evaluar una solicitud de crédito en minutos.
 // Orquesta: producto → solicitud coherente → riesgo → motor → persistir → evento.
+// La persistencia (solicitud + decisión) es un workflow con compensación:
+// una solicitud sin decisión no puede quedar viva.
 
 import type { EventBus } from "../../../kernel/event-bus";
 import { exito, fallo, type Resultado } from "../../../kernel/result";
+import { ejecutarWorkflow, type PasoWorkflow } from "../../../kernel/workflow";
 import type { Decision } from "../domain/decision";
-import { decidirSolicitud } from "../domain/decision-engine";
+import type { MotorDecision } from "../domain/decision-engine";
 import { crearSolicitud, type Solicitud } from "../domain/loan-application";
 import type {
   RepositorioProductos,
@@ -33,6 +36,7 @@ export class EvaluarSolicitud {
     private readonly productos: RepositorioProductos,
     private readonly solicitudes: RepositorioSolicitudes,
     private readonly consultorRiesgo: ConsultorRiesgo,
+    private readonly motor: MotorDecision,
     private readonly bus: EventBus,
   ) {}
 
@@ -59,34 +63,70 @@ export class EvaluarSolicitud {
         score: 0,
         cuotaEstimadaCentavos: 0,
       };
-      const guardada = await this.persistir(creacion.valor, decision, null);
-      return exito(guardada);
+      return this.persistir(creacion.valor, decision, null);
     }
 
-    const decision = decidirSolicitud(creacion.valor, producto, consulta.valor);
-    const guardada = await this.persistir(creacion.valor, decision, consulta.valor);
-    return exito(guardada);
+    const decision = this.motor.decidir(creacion.valor, producto, consulta.valor);
+    return this.persistir(creacion.valor, decision, consulta.valor);
   }
 
+  // Workflow: solicitud y decisión quedan completas o NO quedan.
   private async persistir(
     solicitud: Solicitud,
     decision: Decision,
     reporteRiesgo: unknown,
-  ): Promise<SolicitudEvaluada> {
-    const guardada = await this.solicitudes.guardar({
-      ...solicitud,
-      estado: "evaluada",
-    });
-    await this.solicitudes.guardarDecision(guardada.id!, decision, reporteRiesgo);
+  ): Promise<Resultado<SolicitudEvaluada, string[]>> {
+    interface Ctx {
+      guardada?: Solicitud;
+    }
 
-    await this.bus.emit("originacion.solicitud.evaluada", {
-      solicitudId: guardada.id,
-      clienteId: guardada.clienteId,
-      tiendaId: guardada.tiendaId,
-      resultado: decision.resultado,
-      cuotaEstimadaCentavos: decision.cuotaEstimadaCentavos,
-    });
+    const pasos: PasoWorkflow<Ctx>[] = [
+      {
+        nombre: "guardar-solicitud",
+        invocar: async (ctx) => {
+          ctx.guardada = await this.solicitudes.guardar({
+            ...solicitud,
+            estado: "evaluada",
+          });
+        },
+        compensar: async (ctx) => {
+          if (ctx.guardada?.id) await this.solicitudes.eliminar(ctx.guardada.id);
+        },
+      },
+      {
+        nombre: "guardar-decision",
+        invocar: async (ctx) => {
+          await this.solicitudes.guardarDecision(
+            ctx.guardada!.id!,
+            decision,
+            reporteRiesgo,
+          );
+        },
+        compensar: async (ctx) => {
+          await this.solicitudes.eliminarDecisiones(ctx.guardada!.id!);
+        },
+      },
+      {
+        nombre: "anunciar-evaluacion",
+        invocar: async (ctx) => {
+          await this.bus.emit("originacion.solicitud.evaluada", {
+            solicitudId: ctx.guardada!.id,
+            clienteId: ctx.guardada!.clienteId,
+            tiendaId: ctx.guardada!.tiendaId,
+            resultado: decision.resultado,
+            cuotaEstimadaCentavos: decision.cuotaEstimadaCentavos,
+          });
+        },
+      },
+    ];
 
-    return { solicitud: guardada, decision };
+    const ctx: Ctx = {};
+    const resultado = await ejecutarWorkflow("evaluarSolicitud", pasos, ctx);
+    if (!resultado.ok) {
+      return fallo([
+        `evaluación revertida: falló "${resultado.pasoFallido}" (${String(resultado.error)})`,
+      ]);
+    }
+    return exito({ solicitud: ctx.guardada!, decision });
   }
 }

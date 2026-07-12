@@ -8,6 +8,7 @@ import type {
   RepositorioAsientos,
 } from "../domain/repositories";
 import { RegistrarAsiento } from "../application/record-entry";
+import { ContabilidadService } from "../service";
 import { alDesembolsarCredito, alRegistrarPago } from "./on-cartera-events";
 
 class AsientosEnMemoria implements RepositorioAsientos {
@@ -33,7 +34,7 @@ class WorldOfficeFijo implements SistemaContable {
 
 function armar(wo: SistemaContable) {
   const asientos = new AsientosEnMemoria();
-  const registrar = new RegistrarAsiento(asientos, wo);
+  const registrar = new ContabilidadService(new RegistrarAsiento(asientos, wo));
   const bus = new EventBus();
   bus.on("cartera.credito.desembolsado", alDesembolsarCredito(registrar));
   bus.on("cartera.pago.registrado", alRegistrarPago(registrar));

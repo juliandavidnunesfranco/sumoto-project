@@ -31,4 +31,5 @@ export {
   type ComandoRegistrarPago,
   type PagoRegistrado,
 } from "./application/register-payment";
+export { CarteraService } from "./service";
 export { moduloCartera } from "./module";

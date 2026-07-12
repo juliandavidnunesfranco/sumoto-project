@@ -7,7 +7,7 @@ import {
   asientoDeDesembolso,
   asientoDePago,
 } from "../domain/entry-templates";
-import type { RegistrarAsiento } from "../application/record-entry";
+import type { ContabilidadService } from "../service";
 
 interface PayloadDesembolso {
   creditoId: string;
@@ -27,7 +27,7 @@ interface PayloadPago {
 
 const hoyIso = () => new Date().toISOString().slice(0, 10);
 
-export function alDesembolsarCredito(registrar: RegistrarAsiento) {
+export function alDesembolsarCredito(registrar: ContabilidadService) {
   return async (evento: unknown): Promise<void> => {
     const { payload } = evento as EventoDominio<PayloadDesembolso>;
     const asiento = asientoDeDesembolso({
@@ -39,11 +39,11 @@ export function alDesembolsarCredito(registrar: RegistrarAsiento) {
       console.error(`[contabilidad] asiento de desembolso inválido:`, asiento.error);
       return;
     }
-    await registrar.ejecutar(asiento.valor);
+    await registrar.registrarAsiento(asiento.valor);
   };
 }
 
-export function alRegistrarPago(registrar: RegistrarAsiento) {
+export function alRegistrarPago(registrar: ContabilidadService) {
   return async (evento: unknown): Promise<void> => {
     const { payload } = evento as EventoDominio<PayloadPago>;
     const asiento = asientoDePago({
@@ -59,6 +59,6 @@ export function alRegistrarPago(registrar: RegistrarAsiento) {
       console.error(`[contabilidad] asiento de pago inválido:`, asiento.error);
       return;
     }
-    await registrar.ejecutar(asiento.valor);
+    await registrar.registrarAsiento(asiento.valor);
   };
 }

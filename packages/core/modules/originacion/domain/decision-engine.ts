@@ -2,6 +2,10 @@
 // Evalúa TODAS las políticas del producto (no corta en la primera falla) para
 // que la decisión sea explicable completa. Prioridad: NEGADO > REVISION_MANUAL
 // > APROBADO — una sola causal de negación niega, sin importar las demás.
+//
+// El contrato MotorDecision permite intercambiar el motor por container
+// (motor v2, ML, o un "motor sombra" que corre ambos y compara) sin tocar
+// el caso de uso — token DI: modulo.originacion.motorDecision.
 
 import { cuotaMensualFrancesaCentavos } from "../../../shared/finance";
 import type { ProductoCredito } from "./credit-product";
@@ -11,6 +15,25 @@ import {
   type Solicitud,
 } from "./loan-application";
 import type { ReporteRiesgo } from "./risk-report";
+
+export interface MotorDecision {
+  decidir(
+    solicitud: Solicitud,
+    producto: ProductoCredito,
+    reporte: ReporteRiesgo,
+  ): Decision;
+}
+
+// Implementación v1: reglas paramétricas del producto.
+export class MotorDecisionV1 implements MotorDecision {
+  decidir(
+    solicitud: Solicitud,
+    producto: ProductoCredito,
+    reporte: ReporteRiesgo,
+  ): Decision {
+    return decidirSolicitud(solicitud, producto, reporte);
+  }
+}
 
 export function decidirSolicitud(
   solicitud: Solicitud,

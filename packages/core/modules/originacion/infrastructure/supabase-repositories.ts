@@ -67,6 +67,24 @@ export class RepositorioSolicitudesSupabase implements RepositorioSolicitudes {
     if (error) throw new Error(`[originacion] error actualizando estado: ${error.message}`);
   }
 
+  async eliminar(solicitudId: string): Promise<void> {
+    const { error } = await this.supabase
+      .schema("originacion")
+      .from("solicitudes")
+      .delete()
+      .eq("id", solicitudId);
+    if (error) throw new Error(`[originacion] error eliminando solicitud: ${error.message}`);
+  }
+
+  async eliminarDecisiones(solicitudId: string): Promise<void> {
+    const { error } = await this.supabase
+      .schema("originacion")
+      .from("decisiones")
+      .delete()
+      .eq("solicitud_id", solicitudId);
+    if (error) throw new Error(`[originacion] error eliminando decisiones: ${error.message}`);
+  }
+
   async guardarDecision(
     solicitudId: string,
     decision: Decision,

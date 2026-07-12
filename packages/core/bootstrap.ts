@@ -10,6 +10,11 @@ import { moduloContabilidad } from "./modules/contabilidad/index";
 
 let arrancado = false;
 
+// Decisión 2026-07-12: `supabase` debe ser un cliente SERVICE_ROLE creado en el
+// servidor (jamás expuesto al navegador). La seguridad de la app va en dos
+// puertas: middleware de roles (pantallas) + validación de rol/tienda en rutas;
+// RLS protege el acceso directo a PostgREST. Backlog: cliente por request con
+// JWT del usuario para RLS de punta a punta.
 export function arrancarNucleo(deps: { supabase: object }): void {
   // Next.js puede evaluar el módulo varias veces (HMR, rutas): arranque idempotente
   if (arrancado) return;

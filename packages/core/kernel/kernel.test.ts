@@ -1,6 +1,25 @@
 import { describe, expect, it, vi } from "vitest";
+import { ContainerBuilder } from "node-dependency-injection";
+import { registrarServicio } from "./container";
 import { EventBus } from "./event-bus";
 import { ejecutarWorkflow, type PasoWorkflow } from "./workflow";
+
+describe("container", () => {
+  it("registrarServicio deja el servicio resoluble con get (container REAL)", () => {
+    // regresión: set() sin definición synthetic previa lanza
+    // ServiceNotFoundException en node-dependency-injection
+    const container = new ContainerBuilder();
+    const instancia = { hola: "mundo" };
+
+    registrarServicio(container, "kernel.eventBus", instancia);
+
+    expect(container.get("kernel.eventBus")).toBe(instancia);
+    // re-registrar bajo el mismo token reemplaza sin explotar
+    const otra = { hola: "otra" };
+    registrarServicio(container, "kernel.eventBus", otra);
+    expect(container.get("kernel.eventBus")).toBe(otra);
+  });
+});
 
 describe("EventBus", () => {
   it("un manejador que falla no tumba al emisor ni a los demás oyentes", async () => {

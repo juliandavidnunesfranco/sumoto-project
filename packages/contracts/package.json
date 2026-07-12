@@ -1,0 +1,19 @@
+{
+  "name": "@sumo/contracts",
+  "version": "1.0.0",
+  "description": "Tipos y schemas de frontera entre apps y core (validación de FORMA con Zod)",
+  "private": true,
+  "type": "module",
+  "main": "./index.ts",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "packageManager": "pnpm@10.32.1",
+  "dependencies": {
+    "@sumo/core": "workspace:*",
+    "zod": "^4"
+  },
+  "devDependencies": {
+    "typescript": "^5"
+  }
+}

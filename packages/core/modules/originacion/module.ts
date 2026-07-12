@@ -2,7 +2,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ContainerBuilder } from "node-dependency-injection";
-import { TOKENS } from "../../kernel/container";
+import { registrarServicio, TOKENS } from "../../kernel/container";
 import type { EventBus } from "../../kernel/event-bus";
 import type { ModuleDefinition } from "../../kernel/module-def";
 import { ExperianMock } from "../../integrations/experian/index";
@@ -12,6 +12,8 @@ import {
   RepositorioProductosSupabase,
   RepositorioSolicitudesSupabase,
 } from "./infrastructure/supabase-repositories";
+import { MotorDecisionV1 } from "./domain/decision-engine";
+import { OriginacionService } from "./service";
 import { alDesembolsarCredito } from "./subscribers/on-credit-disbursed";
 
 export const moduloOriginacion: ModuleDefinition = {
@@ -23,15 +25,25 @@ export const moduloOriginacion: ModuleDefinition = {
 
     // Mock hoy; Experian real mañana bajo el mismo token (LSP)
     const consultorRiesgo: ConsultorRiesgo = new ExperianMock();
-    container.set(TOKENS.consultorRiesgo, consultorRiesgo);
+    registrarServicio(container, TOKENS.consultorRiesgo, consultorRiesgo);
 
-    container.set(
+    // Motor v1 intercambiable: motor v2/ML o "motor sombra" bajo el mismo token
+    const motor = new MotorDecisionV1();
+    registrarServicio(container, TOKENS.motorDecision, motor);
+
+    const productos = new RepositorioProductosSupabase(supabase);
+    registrarServicio(
+      container,
       TOKENS.originacionService,
-      new EvaluarSolicitud(
-        new RepositorioProductosSupabase(supabase),
-        new RepositorioSolicitudesSupabase(supabase),
-        consultorRiesgo,
-        bus,
+      new OriginacionService(
+        new EvaluarSolicitud(
+          productos,
+          new RepositorioSolicitudesSupabase(supabase),
+          consultorRiesgo,
+          motor,
+          bus,
+        ),
+        productos,
       ),
     );
   },
