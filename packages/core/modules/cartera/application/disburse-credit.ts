@@ -111,6 +111,7 @@ export class DesembolsarCredito {
             tiendaId: comando.tiendaId,
             montoCentavos: comando.montoCentavos,
             cuotaCentavos: ctx.credito!.cuotaCentavos,
+            fecha: comando.fechaDesembolso,
           });
         },
       },

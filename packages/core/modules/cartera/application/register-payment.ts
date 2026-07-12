@@ -82,6 +82,7 @@ export class RegistrarPago {
       tiendaId: credito.tiendaId,
       montoCentavos: comando.montoCentavos,
       sobranteCentavos: reparto.sobranteCentavos,
+      fecha: comando.fechaPago,
       ...totales,
     });
 

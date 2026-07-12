@@ -51,16 +51,34 @@ crédito con cuotas → dashboard cartera + asientos contables. Branding SUMOTO.
       RegistrarPago emite cartera.pago.registrado con totales por componente
       (insumo contable); subscriber en originación marca solicitud desembolsada.
       Total suite: 71 tests.
+- [x] Módulo `contabilidad` COMPLETO (2026-07-11): migración asientos+partidas
+      (partida doble con check débito XOR crédito) + RLS (contable/financiero/ceo);
+      crearAsiento con invariante débitos===créditos; plantillas asientoDeDesembolso
+      (DB cartera/CR bancos) y asientoDePago (DB bancos/CR cartera+intereses+mora+
+      anticipos); subscribers a los 2 eventos de cartera; WorldOfficeMock tras
+      contrato SistemaContable; asiento se persiste SIEMPRE y despacho fallido
+      queda 'fallido' para reintento. CORE COMPLETO. Total suite: 83 tests.
 
 ## En curso 🔨 (jornada sábado 2026-07-11)
-- [ ] Módulo `contabilidad` (siguiente): subscribers a cartera.credito.desembolsado
-      y cartera.pago.registrado; tabla asientos; adaptador mock World Office
+- [ ] Backoffice: (auth) login + middleware por rol + seed perfiles;
+      (vendedor) solicitud con "Escanear cédula" (mock) + simulador + resultado
+      decisión; (financiero) dashboard cartera básico. ANTES: decidir estrategia
+      de cliente Supabase en el core (service_role vs JWT del usuario — ver
+      observaciones de revisión)
 
 ## Backlog no bloqueante 📥
 - Regla de edad por producto (18–70) en reglas_decision JSONB del motor
   (auditoría 2026-07-11)
 - Mover tasa_mora_ea al producto de crédito (hoy es snapshot en el crédito y
   llega como parámetro del comando de desembolso)
+- RegistrarPago sin saga: pago y acumulados de cuotas en operaciones separadas
+  (riesgo aceptado en demo; candidato a workflow o RPC transaccional)
+- Inserts en dos pasos sin transacción (pago→aplicaciones, asiento→partidas):
+  a futuro, función Postgres/RPC (revisión arquitecto 2026-07-11)
+- Políticas DELETE/UPDATE faltantes en cartera y links: si el core termina usando
+  cliente `authenticated` (no service_role), las compensaciones de la saga serían
+  no-op silencioso. Resolver JUNTO con la decisión de cliente Supabase en fase UI
+  (revisión arquitecto 2026-07-11)
 
 ## Siguiente (en orden) 📋
 3. Módulo `contabilidad`: subscribers a cartera.credito.desembolsado y
@@ -122,4 +140,9 @@ crédito con cuotas → dashboard cartera + asientos contables. Branding SUMOTO.
   no se aplica a nada en automático — decisión de negocio pendiente (¿abono a
   capital? ¿saldo a favor?). Convención de eventos con prefijo de módulo:
   cartera.credito.desembolsado (no credito.desembolsado a secas).
+- 2026-07-11 (sábado): revisión de arquitectura del core completo (arquitecto-
+  revisor): VEREDICTO APROBADO, cero violaciones de las 7 reglas. Corregido en
+  caliente: los eventos de cartera ahora transportan la FECHA DEL HECHO
+  (fechaDesembolso/fechaPago) y los asientos contables la usan — un pago
+  retroactivo ya no genera asiento con fecha del servidor.
 - (agregar nuevas decisiones aquí con fecha)
