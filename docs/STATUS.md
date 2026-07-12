@@ -186,4 +186,10 @@ crédito con cuotas → dashboard cartera + asientos contables. Branding SUMOTO.
 - 2026-07-12 (domingo): Next 16 renombró middleware.ts → proxy.ts (función
   exportada `proxy`); la guarda de roles vive ahí. Los *.e2e.test.ts se excluyen
   de la suite normal (requieren Supabase local): vitest.e2e.config.ts.
+- 2026-07-12 (domingo): FIX login roto — las tablas de `public` (tiendas,
+  perfiles) se crearon SIN grants para authenticated/service_role (42501):
+  Supabase local NO otorga privilegios automáticos en public y service_role
+  bypassa RLS pero no los grants. Migración 20260712163738 + default privileges.
+  Regla aprendida: TODA migración que cree tablas declara sus grants explícitos,
+  también en public.
 - (agregar nuevas decisiones aquí con fecha)
