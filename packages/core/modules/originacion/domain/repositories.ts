@@ -7,6 +7,8 @@ import type { Solicitud } from "./loan-application";
 export interface RepositorioProductos {
   buscarPorId(id: string): Promise<ProductoCredito | null>;
   listarActivos(): Promise<ProductoCredito[]>;
+  guardar(producto: Omit<ProductoCredito, "id">): Promise<ProductoCredito>;
+  actualizarReglas(producto: ProductoCredito): Promise<ProductoCredito>;
 }
 
 export interface RepositorioSolicitudes {

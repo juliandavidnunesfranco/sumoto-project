@@ -7,7 +7,10 @@ import type {
   RepositorioProductos,
   RepositorioSolicitudes,
 } from "../domain/repositories";
+import type { ProductoCredito } from "../domain/credit-product";
 import {
+  aFilaProductoNueva,
+  aFilaReglasJson,
   aFilaSolicitudNueva,
   aProducto,
   aSolicitud,
@@ -17,6 +20,29 @@ import {
 
 export class RepositorioProductosSupabase implements RepositorioProductos {
   constructor(private readonly supabase: SupabaseClient) {}
+
+  async guardar(producto: Omit<ProductoCredito, "id">): Promise<ProductoCredito> {
+    const { data, error } = await this.supabase
+      .schema("originacion")
+      .from("productos_credito")
+      .insert(aFilaProductoNueva(producto))
+      .select()
+      .single<FilaProducto>();
+    if (error) throw new Error(`[originacion] error guardando producto: ${error.message}`);
+    return aProducto(data);
+  }
+
+  async actualizarReglas(producto: ProductoCredito): Promise<ProductoCredito> {
+    const { data, error } = await this.supabase
+      .schema("originacion")
+      .from("productos_credito")
+      .update({ reglas_decision: aFilaReglasJson(producto.reglasDecision) })
+      .eq("id", producto.id)
+      .select()
+      .single<FilaProducto>();
+    if (error) throw new Error(`[originacion] error actualizando reglas: ${error.message}`);
+    return aProducto(data);
+  }
 
   async buscarPorId(id: string) {
     const { data, error } = await this.supabase

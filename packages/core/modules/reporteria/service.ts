@@ -26,6 +26,35 @@ export interface RecaudoMensual {
   capital_centavos: number;
 }
 
+export interface CarteraPorTienda {
+  tienda_id: string;
+  tienda_nombre: string;
+  creditos_activos: number;
+  capital_total_centavos: number;
+  capital_vencido_centavos: number;
+}
+
+export interface SolicitudReciente {
+  solicitud_id: string;
+  tienda_id: string;
+  creado_en: string;
+  valor_moto_centavos: number;
+  estado: string;
+  cliente_nombre: string | null;
+  decision_resultado: string | null;
+  cuota_estimada_centavos: number | null;
+}
+
+export interface AsientoReciente {
+  asiento_id: string;
+  fecha: string;
+  descripcion: string;
+  evento_origen: string;
+  despacho: string;
+  total_debito_centavos: number;
+  total_credito_centavos: number;
+}
+
 export class ReporteriaService {
   constructor(private readonly supabase: SupabaseClient) {}
 
@@ -58,6 +87,44 @@ export class ReporteriaService {
       .limit(limite)
       .returns<RecaudoMensual[]>();
     if (error) throw new Error(`[reporteria] error leyendo recaudo: ${error.message}`);
+    return data ?? [];
+  }
+
+  async carteraPorTienda(): Promise<CarteraPorTienda[]> {
+    const { data, error } = await this.supabase
+      .schema("reporteria")
+      .from("cartera_por_tienda")
+      .select()
+      .order("capital_total_centavos", { ascending: false })
+      .returns<CarteraPorTienda[]>();
+    if (error) throw new Error(`[reporteria] error leyendo cartera por tienda: ${error.message}`);
+    return data ?? [];
+  }
+
+  async solicitudesRecientes(opciones: { tiendaId?: string; limite?: number } = {}): Promise<
+    SolicitudReciente[]
+  > {
+    let consulta = this.supabase
+      .schema("reporteria")
+      .from("solicitudes_recientes")
+      .select()
+      .limit(opciones.limite ?? 20);
+    if (opciones.tiendaId) {
+      consulta = consulta.eq("tienda_id", opciones.tiendaId);
+    }
+    const { data, error } = await consulta.returns<SolicitudReciente[]>();
+    if (error) throw new Error(`[reporteria] error leyendo solicitudes recientes: ${error.message}`);
+    return data ?? [];
+  }
+
+  async asientosRecientes(limite = 20): Promise<AsientoReciente[]> {
+    const { data, error } = await this.supabase
+      .schema("reporteria")
+      .from("asientos_recientes")
+      .select()
+      .limit(limite)
+      .returns<AsientoReciente[]>();
+    if (error) throw new Error(`[reporteria] error leyendo asientos: ${error.message}`);
     return data ?? [];
   }
 }

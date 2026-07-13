@@ -2,9 +2,13 @@
 
 export type { ReporteRiesgo } from "./domain/risk-report";
 export type { ConsultorRiesgo } from "./domain/risk-advisor";
-export type {
-  ProductoCredito,
-  ReglasDecision,
+export {
+  crearProducto,
+  validarProducto,
+  validarReglasDecision,
+  type DatosProducto,
+  type ProductoCredito,
+  type ReglasDecision,
 } from "./domain/credit-product";
 export {
   crearSolicitud,
@@ -28,5 +32,8 @@ export {
   type ComandoEvaluarSolicitud,
   type SolicitudEvaluada,
 } from "./application/evaluate-application";
-export { OriginacionService } from "./service";
+export {
+  OriginacionService,
+  type ComandoSimularDecision,
+} from "./service";
 export { moduloOriginacion } from "./module";

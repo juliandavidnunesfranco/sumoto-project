@@ -2,8 +2,11 @@
 
 export {
   ReporteriaService,
+  type AsientoReciente,
+  type CarteraPorTienda,
   type MoraPorFranja,
   type RecaudoMensual,
   type ResumenCartera,
+  type SolicitudReciente,
 } from "./service";
 export { moduloReporteria } from "./module";

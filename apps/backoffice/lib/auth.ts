@@ -70,9 +70,14 @@ export async function exigirRol(permitidos: Rol[]): Promise<Sesion | Response> {
 export function rutaInicial(rol: Rol): string {
   switch (rol) {
     case "vendedor":
-    case "manager":
       return "/solicitudes/nueva";
-    default:
+    case "manager":
+      return "/tienda";
+    case "financiero":
       return "/cartera";
+    case "contable":
+      return "/contabilidad";
+    case "ceo":
+      return "/ceo";
   }
 }

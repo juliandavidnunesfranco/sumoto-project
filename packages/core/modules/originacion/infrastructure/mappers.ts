@@ -14,13 +14,35 @@ export interface FilaProducto {
   activo: boolean;
 }
 
-interface ReglasDecisionJson {
+export interface ReglasDecisionJson {
   score_minimo: number;
   score_revision?: number;
   cuota_maxima_porcentaje_ingreso: number;
   ltv_maximo: number;
   ingreso_minimo_centavos?: number;
   mora_maxima_dias?: number;
+}
+
+export function aFilaReglasJson(r: ReglasDecision): ReglasDecisionJson {
+  return {
+    score_minimo: r.scoreMinimo,
+    score_revision: r.scoreRevision,
+    cuota_maxima_porcentaje_ingreso: r.cuotaMaximaPorcentajeIngreso,
+    ltv_maximo: r.ltvMaximo,
+    ingreso_minimo_centavos: r.ingresoMinimoCentavos,
+    mora_maxima_dias: r.moraMaximaDias,
+  };
+}
+
+export function aFilaProductoNueva(p: Omit<ProductoCredito, "id">): Omit<FilaProducto, "id"> {
+  return {
+    nombre: p.nombre,
+    tasa_ea: p.tasaEA,
+    plazo_min_meses: p.plazoMinMeses,
+    plazo_max_meses: p.plazoMaxMeses,
+    reglas_decision: aFilaReglasJson(p.reglasDecision),
+    activo: p.activo,
+  };
 }
 
 export function aProducto(fila: FilaProducto): ProductoCredito {

@@ -40,6 +40,8 @@ export const moduloOriginacion: ModuleDefinition = {
         new EvaluarSolicitud(productos, solicitudes, consultorRiesgo, motor, bus),
         productos,
         solicitudes,
+        consultorRiesgo,
+        motor,
       ),
     );
   },
