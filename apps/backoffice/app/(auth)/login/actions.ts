@@ -32,5 +32,5 @@ export async function ingresar(formData: FormData): Promise<void> {
 export async function cerrarSesion(): Promise<void> {
   const supabase = await clienteSupabaseAuth();
   await supabase.auth.signOut();
-  redirect("/login");
+  redirect("/");
 }

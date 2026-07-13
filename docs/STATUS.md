@@ -144,6 +144,20 @@ crédito con cuotas → dashboard cartera + asientos contables. Branding SUMOTO.
   cliente `authenticated` (no service_role), las compensaciones de la saga serían
   no-op silencioso. Resolver JUNTO con la decisión de cliente Supabase en fase UI
   (revisión arquitecto 2026-07-11)
+- Llamadas de auth redundantes entre `proxy.ts` y los `layout.tsx` por rol
+  (2026-07-13): hoy cada navegación a una ruta protegida hace hasta 4 idas y
+  vueltas de red (proxy: `auth.getUser()` + `from("perfiles")`; layout vía
+  `exigirRol()`: OTRO `auth.getUser()` + otra consulta al core). Sin impacto en
+  la demo (Supabase local, latencia ~0), pero en producción con tráfico real
+  suma latencia percibida y puede chocar con límites de tasa del servicio de
+  Auth de Supabase. Mitigaciones estándar, sin bajar el estándar de seguridad:
+  (1) rol como *custom claim* firmado en el JWT (Supabase Auth Hooks), para que
+  `proxy.ts` lo lea decodificando el token sin consulta a Postgres; (2)
+  `getSession()` (decodificación local, sin red) para el gate rápido en
+  `proxy.ts`, dejando `getUser()` (revalidación autoritativa contra el
+  servidor) solo en el layout; (3) `React.cache()` envolviendo
+  `obtenerSesion()`/`exigirRol()` para deduplicar dentro de una misma request
+  si varios componentes la invocan. No bloquea la demo.
 
 ### Outbox persistente del event bus (diseño, 2026-07-12)
 Hoy `EventBus` (kernel/event-bus.ts) vive solo en memoria: si el proceso muere
