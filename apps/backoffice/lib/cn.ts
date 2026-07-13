@@ -1,6 +1,4 @@
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
-
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+// Alias de compatibilidad: @/lib/utils es el canónico (ahí apunta components.json
+// de shadcn), este archivo existía antes del init y varios componentes ya lo
+// importan — se reexporta para no tener una segunda implementación duplicada.
+export { cn } from "./utils";

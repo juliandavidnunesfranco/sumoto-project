@@ -1,14 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut, Menu, X } from "lucide-react";
+import { LogOut } from "lucide-react";
 import type { Sesion } from "@/lib/auth";
 import { ROLES } from "@/lib/roles-nav";
 import { cerrarSesion } from "@/app/(auth)/login/actions";
-import { Marca } from "@/components/marca";
 import { cn } from "@/lib/cn";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
+
+// Mismo lenguaje de hover que home/login: borde inferior siempre visible (pero
+// transparente en reposo), se completa a un marco entero en hover, animando
+// el COLOR del borde (no su ancho, eso no se puede transicionar suave).
+const enlaceEstiloSuzuki =
+  "rounded-none p-2 font-headline text-sm font-bold text-foreground transition-colors duration-200 hover:border border-black hover:bg-transparent hover:text-foreground data-active:border-black data-active:bg-transparent data-active:font-bold data-active:text-foreground";
 
 export function PanelShell({
   sesion,
@@ -18,7 +36,6 @@ export function PanelShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const [abierto, setAbierto] = useState(false);
   const config = ROLES[sesion.rol];
   const iniciales = sesion.nombre
     .split(" ")
@@ -26,93 +43,88 @@ export function PanelShell({
     .slice(0, 2)
     .join("");
 
-  const NavContenido = (
-    <>
-      <div className="px-4 py-5">
-        <Marca className="text-lg" />
-      </div>
-      <div className="px-4 pb-2">
-        <span className="rounded-full bg-primary/15 px-2.5 py-1 text-xs font-medium text-primary">
-          {config.label}
-        </span>
-      </div>
-      <nav className="mt-2 flex flex-1 flex-col gap-1 px-3">
-        {config.nav.map((item) => {
-          const activo = pathname === item.href;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={() => setAbierto(false)}
+  return (
+    <SidebarProvider>
+      <Sidebar collapsible="icon">
+        <SidebarHeader className="px-4 py-5 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-2">
+          <div className="group-data-[collapsible=icon]:hidden">
+            <Image
+              src="/motos/cropped-Logotipo-Su-Moto-sa-PNG-02-2048x561.png"
+              width={160}
+              height={44}
+              alt="SUMOTO"
+            />
+            <span className="mt-2 w-fit px-2.5 py-1 text-xs font-medium font-heading">
+              {config.label}
+            </span>
+          </div>
+          <Image
+            src="/motos/sumoto-s-icon-128.png"
+            width={28}
+            height={28}
+            alt="SUMOTO"
+            className="hidden group-data-[collapsible=icon]:block"
+          />
+        </SidebarHeader>
+
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarMenu>
+              {config.nav.map((item) => {
+                const activo = pathname === item.href;
+                return (
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton
+                      isActive={activo}
+                      tooltip={item.label}
+                      className={enlaceEstiloSuzuki}
+                      render={<Link href={item.href} />}
+                    >
+                      <item.icon />
+                      {item.label}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroup>
+        </SidebarContent>
+
+        <SidebarFooter className="border-t border-border p-3">
+          <div className="flex items-center gap-3 rounded-lg px-2 py-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-secondary text-sm font-semibold uppercase">
+              {iniciales}
+            </span>
+            <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
+              <p className="truncate text-sm font-medium">{sesion.nombre}</p>
+              <p className="truncate text-xs text-muted-foreground">{sesion.email}</p>
+            </div>
+          </div>
+          <form action={cerrarSesion}>
+            <button
+              type="submit"
               className={cn(
-                "rounded-lg px-3 py-2 text-sm transition-colors",
-                activo
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+                "mt-1 flex w-full items-center gap-2 group-data-[collapsible=icon]:justify-center",
+                enlaceEstiloSuzuki,
               )}
             >
-              {item.label}
-            </Link>
-          );
-        })}
-      </nav>
-      <div className="border-t border-border p-3">
-        <div className="flex items-center gap-3 rounded-lg px-2 py-2">
-          <span className="flex size-9 items-center justify-center rounded-full bg-secondary text-sm font-semibold uppercase">
-            {iniciales}
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">{sesion.nombre}</p>
-            <p className="truncate text-xs text-muted-foreground">{sesion.email}</p>
-          </div>
-        </div>
-        <form action={cerrarSesion}>
-          <button
-            type="submit"
-            className="mt-1 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-          >
-            <LogOut className="size-4" />
-            Cerrar sesión
-          </button>
-        </form>
-      </div>
-    </>
-  );
-
-  return (
-    <div className="flex min-h-screen bg-background">
-      <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-sidebar lg:flex">
-        {NavContenido}
-      </aside>
-
-      {abierto ? (
-        <div className="fixed inset-0 z-40 lg:hidden">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setAbierto(false)} />
-          <aside className="absolute inset-y-0 left-0 flex w-64 flex-col border-r border-border bg-sidebar">
-            <button
-              onClick={() => setAbierto(false)}
-              className="absolute right-3 top-4 text-muted-foreground"
-              aria-label="Cerrar menú"
-            >
-              <X className="size-5" />
+              <LogOut className="size-4" />
+              <span className="group-data-[collapsible=icon]:hidden">Cerrar sesión</span>
             </button>
-            {NavContenido}
-          </aside>
-        </div>
-      ) : null}
+          </form>
+        </SidebarFooter>
+      </Sidebar>
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <SidebarInset>
         <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-border bg-background/80 px-4 py-3 backdrop-blur md:px-6">
-          <button className="lg:hidden" onClick={() => setAbierto(true)} aria-label="Abrir menú">
-            <Menu className="size-5" />
-          </button>
+          <SidebarTrigger />
           <span className="ml-auto text-sm text-muted-foreground">
             {sesion.tiendaId ? "Tienda asignada" : "Alcance nacional"}
           </span>
         </header>
 
         <main className="flex-1 px-4 py-6 md:px-6 lg:px-8">{children}</main>
-      </div>
-    </div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }

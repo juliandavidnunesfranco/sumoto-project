@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Barlow_Condensed } from "next/font/google";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -36,7 +37,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" className={`${geistSans.variable} ${geistMono.variable} ${suzukiStyleFont.variable} antialiased`}>
-      <body className="bg-background font-sans text-foreground antialiased">{children}</body>
+      <body className="bg-background font-sans text-foreground antialiased">
+        <TooltipProvider>{children}</TooltipProvider>
+      </body>
     </html>
   );
 }

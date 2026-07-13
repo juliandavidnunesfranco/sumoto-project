@@ -152,6 +152,38 @@ crédito con cuotas → dashboard cartera + asientos contables. Branding SUMOTO.
       exitoso, y lo preserva también en los redirects de error. Verificado en
       navegador: entrar a `/politicas` sin sesión → login → aterriza en
       `/politicas`, no en la home fija del rol.
+- [x] shadcn/ui instalado correctamente (2026-07-13): no existía
+      `components.json` — por eso pegar componentes a mano fallaba (traían la
+      variante Radix, y este proyecto usa `@base-ui/react`, paquete distinto).
+      `npx shadcn@latest init --preset nova --base base` generó la config
+      apuntando a la librería `base` (igual que el `Button` ya existente). El
+      init SOBREESCRIBIÓ `globals.css` con la paleta neutra por defecto — se
+      reconcilió a mano devolviendo la paleta azul/clara y corrigiendo
+      `--font-sans` (había quedado autoreferenciada, ya no apuntaba a Geist),
+      conservando lo nuevo útil (`--sidebar-*`/`--chart-*`, `tw-animate-css`).
+      `npx shadcn@latest add sidebar --overwrite` trajo `sheet`/`sidebar` (y
+      sus dependencias: `input`, `separator`, `tooltip`, `skeleton`,
+      `use-mobile`) ya resueltos en `@base-ui/react`. `lib/cn.ts` quedó como
+      re-export de `lib/utils.ts` (el alias que usa `components.json`) para no
+      tener dos implementaciones duplicadas. `app/layout.tsx` envuelto en
+      `<TooltipProvider>` (lo pide el Sidebar para el modo icono).
+- [x] `PanelShell` migrado al Sidebar de shadcn (2026-07-13): reemplaza el
+      sidebar hecho a mano (useState propio para el menú móvil — ya no hace
+      falta, el `SidebarProvider` lo resuelve con el `Sheet` instalado). Logo
+      real en vez del componente `Marca` (texto); cada ítem de
+      `lib/roles-nav.ts` ahora lleva su `icon` (Lucide). `Sidebar
+      collapsible="icon"`: al colapsar en escritorio queda una columna delgada
+      SOLO con íconos (antes desaparecía del todo) — con tooltip por ítem
+      (`SidebarMenuButton tooltip=...`) y el logo cambia al ícono cuadrado
+      `sumoto-s-icon-128.png` (los otros dos elementos que trajo Julián,
+      `sumoto-s-icon.png`/`-v2.png`, son la misma marca sin recortar a
+      cuadrado — se usó la versión 128×128 ya cuadrada). En móvil el mismo
+      Sidebar se abre como panel deslizante (Sheet), sin código adicional.
+      Los links (nav + "Cerrar sesión") usan el mismo lenguaje de hover que
+      home/login: borde inferior negro siempre visible que se completa a
+      marco entero en hover, con transición de color de 200ms (no de ancho,
+      eso no anima suave). Verificado en navegador: colapsado, tooltip, móvil
+      (390px), build de producción.
 
 ## En curso 🔨
 - [x] `exigirRol` (apps/backoffice/lib/auth.ts) delega la política de
@@ -237,14 +269,19 @@ En su lugar:
   no vive en la app, que es el prerequisito de este diseño.
 
 ## Siguiente (en orden) 📋
-3. Módulo `contabilidad`: subscribers a cartera.credito.desembolsado y
-   cartera.pago.registrado; tabla asientos; adaptador mock World Office
-4. Backoffice: (auth) login + middleware por rol + tabla perfiles seed;
-   (vendedor) formulario solicitud con botón "Escanear cédula" (mock) + simulador +
-   pantalla resultado decisión; (financiero) dashboard cartera básico
-5. Seed de demo: productos de crédito, usuarios por rol, 15-20 créditos con historia
-   de pagos variada (al día, mora 30, mora 60+) para que el dashboard luzca
-6. Branding SUMOTO en la UI + recorrido de demo ensayado
+1. Módulo `notificaciones` (mañana, 2026-07-14): alcance por definir al
+   retomar — candidatos naturales dado lo que ya existe: evento
+   `cartera.credito.desembolsado`/`cartera.pago.registrado` disparando un
+   aviso, y algo para `originacion` (decisión lista). Debe seguir la misma
+   anatomía de módulo (domain/application/infrastructure/subscribers/
+   module.ts/index.ts) y el patrón adaptador para el canal de envío (¿email?
+   ¿solo in-app?) — mock intercambiable como Experian/World Office. Definir
+   con Julián: ¿quién recibe qué? ¿tabla propia o solo push por evento?
+2. Recorrido de demo en navegador con el diseño nuevo, los 5 roles (sigue
+   pendiente de la sesión anterior, ver "En curso" arriba).
+3. Recorrido completo del proyecto — core y backoffice (más tarde, mismo
+   día): revisión general de lo construido hasta ahora, sin alcance
+   detallado todavía.
 
 ## Fuera de alcance del fin de semana (fases del contrato — NO construir aún)
 - portal-cliente, roles (manager)(contable)(ceo) completos, packages/ui
@@ -391,4 +428,18 @@ En su lugar:
   arriba), con 3 mitigaciones concretas (custom claim de rol en el JWT,
   `getSession()` para el gate rápido, `React.cache()` para deduplicar dentro
   de una request) — no implementado aún, solo diagnóstico y diseño.
+- 2026-07-13 (lunes): shadcn/ui se instala SIEMPRE vía CLI (`npx shadcn@latest
+  init`/`add`), nunca pegando archivos a mano — sin `components.json` la CLI
+  no sabe resolver alias/dependencias, y los ejemplos de la doc de shadcn
+  vienen en Radix por defecto, no en `@base-ui/react` (lo que ya usa este
+  proyecto desde el `Button` original). `init --base base` es obligatorio
+  para que coincida. Lección cara: `init` reescribe `globals.css` con su
+  paleta neutra por defecto sin avisar — SIEMPRE respaldar el archivo antes
+  de correrlo si tiene tema custom (aquí sí se hizo backup y se reconcilió a
+  mano; si no, se habría perdido toda la paleta Suzuki de la sesión).
+- 2026-07-13 (lunes): sidebar de `PanelShell` migrado al Sidebar de shadcn en
+  modo `collapsible="icon"` — decisión de Julián de que la columna colapsada
+  muestre íconos (con tooltip) en vez de ocultarse del todo. El logo cambia
+  entre el wordmark completo (expandido) y `sumoto-s-icon-128.png` (ícono
+  cuadrado, colapsado) vía `group-data-[collapsible=icon]:hidden`/`:block`.
 - (agregar nuevas decisiones aquí con fecha)

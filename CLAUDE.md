@@ -157,6 +157,14 @@ verdad; reglas simples compartidas se exportan como predicados puros
   (fin de semana, dev solo). GitHub Flow cuando haya contrato.
 - TypeScript estricto. Sin `any` salvo justificación en comentario.
 - UI: Tailwind. Componentes en el backoffice por ahora (packages/ui es fase futura).
+- Componentes shadcn/ui: SIEMPRE vía CLI (`npx shadcn@latest init`/`add`),
+  nunca pegando archivos a mano — sin `components.json` la CLI no resuelve
+  alias/dependencias, y los ejemplos de su doc vienen en Radix por defecto,
+  no en `@base-ui/react` (la librería que ya usa `Button`). Usar `--base base`
+  siempre. `init` reescribe `globals.css` con su paleta por defecto sin
+  avisar — respaldar el archivo si tiene tema custom antes de correrlo
+  (decisión 2026-07-13, tras reescribir por accidente el tema Suzuki y
+  reconciliarlo a mano).
 
 ## Flujo de negocio de referencia (para entender el dominio)
 
