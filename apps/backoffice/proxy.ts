@@ -39,8 +39,12 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  const destino = request.nextUrl.pathname + request.nextUrl.search;
+
   if (!user) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("next", destino);
+    return NextResponse.redirect(loginUrl);
   }
 
   const regla = ACCESOS.find(([prefijo]) =>
@@ -54,7 +58,10 @@ export async function proxy(request: NextRequest) {
       .eq("user_id", user.id)
       .single();
     if (!perfil || !regla[1].includes(perfil.rol as Rol)) {
-      return NextResponse.redirect(new URL("/login?denegado=1", request.url));
+      const loginUrl = new URL("/login", request.url);
+      loginUrl.searchParams.set("denegado", "1");
+      loginUrl.searchParams.set("next", destino);
+      return NextResponse.redirect(loginUrl);
     }
   }
 

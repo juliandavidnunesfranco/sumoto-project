@@ -13,7 +13,7 @@ const MENSAJES: Record<string, string> = {
 export default async function Login({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; denegado?: string }>;
+  searchParams: Promise<{ error?: string; denegado?: string; next?: string }>;
 }) {
   const params = await searchParams;
   const mensaje = params.denegado
@@ -25,7 +25,8 @@ export default async function Login({
   return (
     <main className="grid min-h-screen lg:grid-cols-2">
       <div className="flex items-center justify-center px-6 py-12">
-        <FormularioLogin mensaje={mensaje} />
+        
+        <FormularioLogin mensaje={mensaje} next={params.next ?? ""} />
       </div>
 
       <div className="relative hidden overflow-hidden border-l border-border bg-card lg:block">

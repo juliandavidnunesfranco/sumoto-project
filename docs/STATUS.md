@@ -117,6 +117,41 @@ crédito con cuotas → dashboard cartera + asientos contables. Branding SUMOTO.
       `proxy.ts` actualizado con los 4 prefijos nuevos (`/politicas`,
       `/tienda`, `/contabilidad`, `/ceo`). Verificado: 97/97 tests core,
       typecheck limpio, `pnpm --filter backoffice build` exitoso (8 rutas).
+- [x] Tema corregido a claro/estilo Suzuki (2026-07-13): el port inicial de v0
+      dejó el fondo blanco pero varios tokens (`--border`, `--popover`,
+      `--secondary`, `--muted`, `--accent`, `--sidebar`) seguían con valores
+      oscuros — bordes casi invisibles y tarjetas oscuras sobre fondo blanco.
+      `globals.css` reescrito con paleta clara completa (`color-scheme: light`,
+      primario azul `oklch(0.42 0.16 259)`). Bug real encontrado de paso:
+      `Header`/`Footer` de marketing vivían en el layout raíz y se filtraban
+      encima del panel autenticado (que ya tiene su propio sidebar/header) —
+      movidos a que solo los use la landing (`app/page.tsx`). `Header` pasó de
+      `fixed` (fuera del flujo, necesitaba `pt-36` manual) a `sticky top-0` con
+      `bg-background/80 backdrop-blur`, sin hack de padding.
+- [x] Animaciones de entrada en la landing (2026-07-13), pura curva
+      Disney (slow-in/slow-out, ease-out): logo + tagline del Header con
+      `@keyframes` CSS puro (sin JS, respeta `prefers-reduced-motion`); las 3
+      tarjetas de features usan `RevealOnScroll` (`components/shared/
+      reveal-on-scroll.tsx`) — único componente `"use client"` de la landing,
+      justificado porque detectar scroll-into-view con `IntersectionObserver`
+      es inherentemente de navegador. Se dispara una vez por tarjeta con
+      stagger de 100ms, no se revierte al volver a subir.
+- [x] Login rediseñado con fidelidad literal al mockup v0 (2026-07-13, sobre
+      la MISMA lógica real, no la del mockup): layout de 2 columnas (form +
+      foto de moto con degradado), panel de "usuarios demo" con los 5 roles
+      reales (verificados contra `supabase/seed.sql`) que autocompletan
+      correo+`sumoto123`, y botón con estado "Ingresando…" vía
+      `useFormStatus`. Todo en `components/login/formulario-login.tsx`
+      (`"use client"` solo por la interactividad; la Server Action `ingresar`
+      no cambió). `cerrarSesion()` ahora redirige a `/` en vez de `/login`.
+- [x] Redirect `next` implementado end-to-end (2026-07-13): `proxy.ts` agrega
+      `?next=<ruta original>` al mandar a `/login` (sin sesión o rol
+      denegado); el form lo lleva como campo oculto; la action valida con
+      `siguienteSeguro()` que sea una ruta interna (`/…`, nunca `//` ni un
+      host externo — anti open-redirect) antes de redirigir ahí tras login
+      exitoso, y lo preserva también en los redirects de error. Verificado en
+      navegador: entrar a `/politicas` sin sesión → login → aterriza en
+      `/politicas`, no en la home fija del rol.
 
 ## En curso 🔨
 - [x] `exigirRol` (apps/backoffice/lib/auth.ts) delega la política de
@@ -333,4 +368,27 @@ En su lugar:
   antes de que cada rol tuviera el suyo): se acotó a `["financiero"]`, que
   es lo único que hoy enlaza `lib/roles-nav.ts`. Verificado: typecheck limpio
   + build exitoso tras el fix.
+- 2026-07-13 (lunes): Julián empezó a re-estilar el backoffice hacia una
+  identidad visual tipo Suzuki (globalsuzuki.com) — fondo blanco, azul
+  corporativo — en vez del tema oscuro que se había portado de v0. FIX de
+  consistencia: varios tokens de color en `globals.css` se habían quedado
+  oscuros pese al fondo blanco (bordes casi invisibles, tarjetas oscuras);
+  reescritos a paleta clara completa. Bug real encontrado y corregido: el
+  `Header`/`Footer` de marketing vivían en el layout raíz y se renderizaban
+  también encima del panel autenticado de cada rol.
+- 2026-07-13 (lunes): feedback explícito de Julián — al portar un diseño de
+  referencia (v0 antes, Suzuki ahora) espera fidelidad literal a componentes
+  y layout, no una versión adaptada/simplificada por iniciativa propia. Única
+  excepción legítima: violaciones reales de las reglas 1/6 (auth insegura o
+  lógica de negocio duplicada del lado cliente), como ya se había hecho con
+  el mockup v0. Aplicado en el rediseño del login: se replicó el layout de
+  v0 (2 columnas, panel de usuarios demo, estado de carga) tal cual, solo
+  cambiando la Server Action de fondo por la real del proyecto.
+- 2026-07-13 (lunes): discutido el costo de las llamadas de auth redundantes
+  entre `proxy.ts` y los `layout.tsx` por rol (hasta 4 idas y vueltas de red
+  por navegación protegida) — sin impacto en la demo (Supabase local), sí en
+  producción con tráfico real. Registrado como backlog no bloqueante (ver
+  arriba), con 3 mitigaciones concretas (custom claim de rol en el JWT,
+  `getSession()` para el gate rápido, `React.cache()` para deduplicar dentro
+  de una request) — no implementado aún, solo diagnóstico y diseño.
 - (agregar nuevas decisiones aquí con fecha)

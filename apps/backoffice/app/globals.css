@@ -3,6 +3,7 @@
 @theme inline {
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-headline: var(--font-headline);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);

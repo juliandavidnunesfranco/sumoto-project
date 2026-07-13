@@ -7,12 +7,11 @@
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
-import { AlertCircle, ArrowLeft, LogIn } from "lucide-react";
+import { AlertCircle, ArrowLeft } from "lucide-react";
 import type { Rol } from "@sumo/core";
 import { ingresar } from "@/app/(auth)/login/actions";
 import { ROLES } from "@/lib/roles-nav";
-import { Marca } from "@/components/marca";
-import { Button } from "@/components/ui/button";
+import Image from "next/image";
 
 const USUARIOS_DEMO: { email: string; rol: Rol }[] = [
   { email: "vendedor@sumoto.co", rol: "vendedor" },
@@ -25,14 +24,17 @@ const USUARIOS_DEMO: { email: string; rol: Rol }[] = [
 function BotonIngresar() {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" size="lg" disabled={pending} className="mt-2">
-      <LogIn className="size-4" />
+    <button
+      type="submit"
+      disabled={pending}
+      className="mt-2 w-fit self-center font-headline text-4xl font-black p-4 hover:text-muted-foreground  hover:border border-black disabled:opacity-60 transition-colors duration-200"
+    >
       {pending ? "Ingresando…" : "Ingresar"}
-    </Button>
+    </button>
   );
 }
 
-export function FormularioLogin({ mensaje }: { mensaje: string | null }) {
+export function FormularioLogin({ mensaje, next }: { mensaje: string | null; next: string }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -42,22 +44,30 @@ export function FormularioLogin({ mensaje }: { mensaje: string | null }) {
   }
 
   return (
-    <div className="w-full max-w-sm">
+    <div className="w-full max-w-sm ">
       <Link
         href="/"
-        className="mb-8 mr-4 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+        className="fixed top-10 left-4 flex items-center gap-2 font-headline text-2xl font-black  p-4  hover:text-muted-foreground hover:border border-black transition-colors duration-200"
       >
-        <ArrowLeft className="size-4" />
+        <ArrowLeft className="size-5" />
         Volver
       </Link>
 
-      <Marca className="text-2xl" sub="CRÉDITO" />
-      <h1 className="mt-6 text-2xl font-bold">Ingresa a tu tablero</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Tu rol determina las herramientas que verás al entrar.
-      </p>
+      <div className="flex flex-col items-center text-center">
+        <Image
+          src={"/motos/cropped-Logotipo-Su-Moto-sa-PNG-02-2048x561.png"}
+          width={300}
+          height={300}
+          alt="logo"
+          />
+        <h1 className="mt-6 font-headline text-4xl font-bold">Ingresa al tablero</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Tu rol determina las herramientas que verás al entrar.
+        </p>
+      </div>
 
       <form action={ingresar} className="mt-8 flex flex-col gap-4">
+        <input type="hidden" name="next" value={next} />
         <label className="flex flex-col gap-1.5 text-sm">
           <span className="text-muted-foreground">Correo</span>
           <input
@@ -95,17 +105,17 @@ export function FormularioLogin({ mensaje }: { mensaje: string | null }) {
         <BotonIngresar />
       </form>
 
-      <div className="mt-8 rounded-xl border border-border bg-card p-4">
+      <div className="mt-8">
         <p className="text-xs font-medium text-muted-foreground">
           Usuarios de demo · contraseña <code className="text-foreground">sumoto123</code>
         </p>
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-3 flex flex-col">
           {USUARIOS_DEMO.map((u) => (
             <button
               key={u.email}
               type="button"
               onClick={() => usarDemo(u.email)}
-              className="rounded-full border border-border bg-secondary px-3 py-1 text-xs transition-colors hover:border-primary hover:text-primary"
+              className="p-2 text-justify font-headline text-sm font-bold transition-colors duration-200 hover:border border-black hover:text-muted-foreground"
             >
               {ROLES[u.rol].label}
             </button>

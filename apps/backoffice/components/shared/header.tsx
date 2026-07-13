@@ -1,6 +1,5 @@
 import Link from "next/link"
 import Image from "next/image"
-import { Button } from "../ui/button"
 import { Gauge } from "lucide-react"
 import { cn } from "@/lib/cn"
 
@@ -22,11 +21,9 @@ export function Header({className}:{className?:string}){
           </span>
 
         </div>
-        <Button size="lg" className="hover:bg-blue-500 hover:text-black">
-          <Link href="/login">
-            Ingresar
-          </Link>
-        </Button>
+            <Link href="/login">
+               <span className="text-4xl font-headline font-black hover:border border-b-black p-4  hover:text-muted-foreground transition ">Ingresar</span> 
+            </Link>
     </header>
 
     )

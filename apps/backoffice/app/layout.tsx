@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Barlow_Condensed } from "next/font/google";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -11,6 +11,12 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
+
+const suzukiStyleFont = Barlow_Condensed({
+  subsets: ["latin"],
+  weight:["600", "700"],
+  variable: "--font-headline"
+})
 
 export const metadata: Metadata = {
   title: "SUMOTO Crédito · Plataforma de financiación",
@@ -29,7 +35,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+    <html lang="es" className={`${geistSans.variable} ${geistMono.variable} ${suzukiStyleFont.variable} antialiased`}>
       <body className="bg-background font-sans text-foreground antialiased">{children}</body>
     </html>
   );
