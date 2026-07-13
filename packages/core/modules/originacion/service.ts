@@ -4,12 +4,16 @@ import type {
   ComandoEvaluarSolicitud,
   EvaluarSolicitud,
 } from "./application/evaluate-application";
-import type { RepositorioProductos } from "./domain/repositories";
+import type {
+  RepositorioProductos,
+  RepositorioSolicitudes,
+} from "./domain/repositories";
 
 export class OriginacionService {
   constructor(
     private readonly casoEvaluar: EvaluarSolicitud,
     private readonly productos: RepositorioProductos,
+    private readonly solicitudes: RepositorioSolicitudes,
   ) {}
 
   evaluarSolicitud(comando: ComandoEvaluarSolicitud) {
@@ -18,5 +22,13 @@ export class OriginacionService {
 
   listarProductosActivos() {
     return this.productos.listarActivos();
+  }
+
+  async solicitudEvaluada(solicitudId: string) {
+    const [solicitud, decision] = await Promise.all([
+      this.solicitudes.buscarPorId(solicitudId),
+      this.solicitudes.buscarDecision(solicitudId),
+    ]);
+    return solicitud && decision ? { solicitud, decision } : null;
   }
 }

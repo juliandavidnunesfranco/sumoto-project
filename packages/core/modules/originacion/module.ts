@@ -32,18 +32,14 @@ export const moduloOriginacion: ModuleDefinition = {
     registrarServicio(container, TOKENS.motorDecision, motor);
 
     const productos = new RepositorioProductosSupabase(supabase);
+    const solicitudes = new RepositorioSolicitudesSupabase(supabase);
     registrarServicio(
       container,
       TOKENS.originacionService,
       new OriginacionService(
-        new EvaluarSolicitud(
-          productos,
-          new RepositorioSolicitudesSupabase(supabase),
-          consultorRiesgo,
-          motor,
-          bus,
-        ),
+        new EvaluarSolicitud(productos, solicitudes, consultorRiesgo, motor, bus),
         productos,
+        solicitudes,
       ),
     );
   },

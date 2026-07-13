@@ -28,7 +28,10 @@ export const moduloClientes: ModuleDefinition = {
     registrarServicio(
       container,
       TOKENS.clientesService,
-      new ClientesService(new RegistrarCliente(fuentes, repositorio, bus)),
+      new ClientesService(
+        new RegistrarCliente(fuentes, repositorio, bus),
+        repositorio,
+      ),
     );
   },
 };

@@ -16,4 +16,7 @@ export interface RepositorioSolicitudes {
   // compensaciones del workflow de evaluación
   eliminar(solicitudId: string): Promise<void>;
   eliminarDecisiones(solicitudId: string): Promise<void>;
+  // lecturas (pantalla de resultado y revisión del manager)
+  buscarPorId(solicitudId: string): Promise<Solicitud | null>;
+  buscarDecision(solicitudId: string): Promise<Decision | null>;
 }

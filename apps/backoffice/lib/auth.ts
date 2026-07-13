@@ -1,23 +1,21 @@
-// Sesión + perfil del usuario en el servidor (segunda puerta: cada ruta valida
-// rol/tienda ella misma, sin confiar solo en el proxy).
+// Sesión en el servidor. La app solo maneja el PLUMBING (cookies de Supabase
+// Auth, el proveedor de identidad); el PERFIL (rol/tienda) lo resuelve el core
+// vía el módulo seguridad. Segunda puerta: cada ruta/action valida rol aquí.
 
 import { createServerClient } from "@supabase/ssr";
+import type { Perfil, Rol } from "@sumo/core";
 import { cookies } from "next/headers";
-import { supabaseAdmin } from "./core-server";
+import { seguridadService } from "./core-server";
 
-export type Rol = "vendedor" | "manager" | "financiero" | "contable" | "ceo";
+export type { Rol };
 
-export interface Sesion {
-  userId: string;
+export interface Sesion extends Perfil {
   email: string;
-  nombre: string;
-  rol: Rol;
-  tiendaId: string | null;
 }
 
-export async function obtenerSesion(): Promise<Sesion | null> {
+export async function clienteSupabaseAuth() {
   const cookieStore = await cookies();
-  const supabase = createServerClient(
+  return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
@@ -35,43 +33,38 @@ export async function obtenerSesion(): Promise<Sesion | null> {
       },
     },
   );
+}
 
+export async function obtenerSesion(): Promise<Sesion | null> {
+  const supabase = await clienteSupabaseAuth();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data: perfil } = await supabaseAdmin
-    .from("perfiles")
-    .select("rol, tienda_id, nombre")
-    .eq("user_id", user.id)
-    .single();
-  if (!perfil) return null;
-
-  return {
-    userId: user.id,
-    email: user.email ?? "",
-    nombre: perfil.nombre,
-    rol: perfil.rol as Rol,
-    tiendaId: perfil.tienda_id,
-  };
+  const perfil = await seguridadService().perfilDe(user.id);
+  return perfil ? { ...perfil, email: user.email ?? "" } : null;
 }
 
-// Guarda para rutas API: devuelve la sesión o una Response 401/403 lista.
-export async function exigirRol(
-  permitidos: Rol[],
-): Promise<Sesion | Response> {
-  const sesion = await obtenerSesion();
-  if (!sesion) {
+// Guarda para rutas API y server actions. La POLÍTICA de autorización la
+// decide el core (SeguridadService.tieneAcceso); aquí solo se traduce a HTTP.
+export async function exigirRol(permitidos: Rol[]): Promise<Sesion | Response> {
+  const supabase = await clienteSupabaseAuth();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
     return Response.json({ error: "no autenticado" }, { status: 401 });
   }
-  if (!permitidos.includes(sesion.rol)) {
+
+  const perfil = await seguridadService().tieneAcceso(user.id, permitidos);
+  if (!perfil) {
     return Response.json(
-      { error: `rol ${sesion.rol} sin acceso a esta operación` },
+      { error: "tu rol no tiene acceso a esta operación" },
       { status: 403 },
     );
   }
-  return sesion;
+  return { ...perfil, email: user.email ?? "" };
 }
 
 export function rutaInicial(rol: Rol): string {

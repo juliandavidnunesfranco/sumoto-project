@@ -14,11 +14,20 @@ import { alDesembolsarCredito, alRegistrarPago } from "./on-cartera-events";
 class AsientosEnMemoria implements RepositorioAsientos {
   guardados: AsientoContable[] = [];
   despachos: Array<[string, EstadoDespacho, string | undefined]> = [];
+  partidasGuardadas = 0;
+  fallarEnPartidas = false;
 
-  async guardar(asiento: AsientoContable) {
+  async guardarEncabezado(asiento: AsientoContable) {
     const guardado = { ...asiento, id: `as-${this.guardados.length + 1}` };
     this.guardados.push(guardado);
     return guardado;
+  }
+  async guardarPartidas(asiento: AsientoContable) {
+    if (this.fallarEnPartidas) throw new Error("db caída guardando partidas");
+    this.partidasGuardadas += asiento.partidas.length;
+  }
+  async eliminar(asientoId: string) {
+    this.guardados = this.guardados.filter((a) => a.id !== asientoId);
   }
   async marcarDespacho(id: string, estado: EstadoDespacho, idExterno?: string) {
     this.despachos.push([id, estado, idExterno]);
@@ -90,6 +99,27 @@ describe("contabilidad escucha a cartera (flujo completo por el bus)", () => {
 
     expect(asientos.guardados).toHaveLength(1); // la contabilidad interna no se pierde
     expect(asientos.despachos).toEqual([["as-1", "fallido", undefined]]);
+    errorSilenciado.mockRestore();
+  });
+
+  it("si fallan las partidas, COMPENSA: el encabezado se elimina (sin asientos huérfanos)", async () => {
+    const errorSilenciado = vi.spyOn(console, "error").mockImplementation(() => {});
+    const asientos = new AsientosEnMemoria();
+    asientos.fallarEnPartidas = true;
+    const registrar = new ContabilidadService(
+      new RegistrarAsiento(asientos, new WorldOfficeFijo(exito({ idExterno: "WO-9" }))),
+    );
+    const bus = new EventBus();
+    bus.on("cartera.credito.desembolsado", alDesembolsarCredito(registrar));
+
+    // el bus aísla la excepción del subscriber; el encabezado debe quedar compensado
+    await bus.emit("cartera.credito.desembolsado", {
+      creditoId: "cred-1",
+      montoCentavos: 600_000_000,
+    });
+
+    expect(asientos.guardados).toHaveLength(0); // compensado
+    expect(asientos.despachos).toHaveLength(0); // jamás llegó a World Office
     errorSilenciado.mockRestore();
   });
 

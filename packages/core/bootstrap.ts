@@ -7,6 +7,8 @@ import { moduloClientes } from "./modules/clientes/index";
 import { moduloOriginacion } from "./modules/originacion/index";
 import { moduloCartera } from "./modules/cartera/index";
 import { moduloContabilidad } from "./modules/contabilidad/index";
+import { moduloReporteria } from "./modules/reporteria/index";
+import { moduloSeguridad } from "./modules/seguridad/index";
 
 let arrancado = false;
 
@@ -24,6 +26,8 @@ export function arrancarNucleo(deps: { supabase: object }): void {
     moduloOriginacion,
     moduloCartera,
     moduloContabilidad,
+    moduloReporteria,
+    moduloSeguridad,
   ]);
   arrancado = true;
 }

@@ -21,14 +21,41 @@ Diseñado para poder extraer módulos a servicios en el futuro sin reescribir.
   OriginacionService, CarteraService, ContabilidadService) bajo su token
   `modulo.<nombre>.service`. Los casos de uso viven detrás de la fachada.
 - **Toda mutación multi-paso es un workflow con compensación** (desembolso,
-  registro de pago, evaluación). Regla de saga: el kernel solo compensa pasos
-  COMPLETADOS — un paso que puede fallar a mitad limpia lo suyo antes de relanzar.
+  registro de pago, evaluación, registro de asiento). Regla de saga: el kernel
+  solo compensa pasos COMPLETADOS — un paso que puede fallar a mitad limpia lo
+  suyo antes de relanzar. El evento del hecho SIEMPRE es el último paso: nunca
+  se anuncia algo que pudo revertirse. Los módulos de SOLO LECTURA (reporteria,
+  seguridad) no llevan workflows: una consulta no deja nada que revertir —
+  igual que en Medusa v2 (workflows para mutaciones, Query para lecturas).
 - **Motor de decisión tras contrato `MotorDecision`** (token
   `modulo.originacion.motorDecision`): intercambiable para motor v2/ML o "modo
   sombra" (correr dos motores y comparar) sin tocar el caso de uso.
 - **Cliente Supabase del core: SERVICE_ROLE del lado servidor.** La seguridad va
   en dos puertas: middleware de roles + validación rol/tienda en rutas API; RLS
   protege el acceso directo a PostgREST. Backlog: cliente por request con JWT.
+- **La app NUNCA toca Supabase para datos de negocio** (decisión 2026-07-12):
+  las pantallas consultan fachadas del core (reporteria incluida). La ÚNICA
+  excepción permitida en la app es el plumbing de sesión (@supabase/ssr en
+  proxy.ts y login): Supabase Auth es el proveedor de identidad — el PERFIL
+  (rol/tienda) sí viene del core vía el módulo `seguridad`. Auth NO va en el
+  kernel: es módulo del core, como en Medusa.
+  - `lib/auth.ts` (`clienteSupabaseAuth`) solo llama `supabase.auth.getUser()`
+    — verificar el JWT contra el proveedor de identidad, CERO consultas a
+    tablas (`.from()`/`.schema()`). El dato de negocio (rol/tienda) siempre
+    pasa por `seguridadService()`. No puede moverse al core porque usa
+    `next/headers`, y el core tiene cero dependencia de Next (regla 4).
+  - **Excepción adicional, solo en `proxy.ts`:** SÍ hace una consulta directa
+    (`.from("perfiles").select("rol")`, protegida por RLS `perfiles_lectura_propia`,
+    cliente anon). Motivo: `proxy.ts` corre en el Edge Runtime de Next, que NO
+    puede cargar el core (`node-dependency-injection` necesita el runtime
+    completo de Node) — la propia doc de Next 16 advierte no depender de
+    módulos compartidos ahí. Es consulta mínima de una tabla acotada por RLS,
+    no lógica de negocio. Mismo patrón que usa Medusa v2 para middleware de
+    auth en edge. Fuera de `proxy.ts`, esta excepción NO aplica.
+- **Backoffice 100% SSR** (decisión 2026-07-12): server components + server
+  actions; el estado de wizards viaja en searchParams. Sin "use client" salvo
+  necesidad demostrada. Las rutas app/api/ quedan como superficie para
+  integraciones externas futuras, no para las pantallas propias.
 
 ### Kernel (packages/core/kernel/) — YA IMPLEMENTADO, no modificar sin razón fuerte
 - `container.ts` — DI con node-dependency-injection. Tokens centralizados en TOKENS.

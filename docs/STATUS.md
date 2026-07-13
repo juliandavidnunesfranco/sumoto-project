@@ -89,6 +89,11 @@ crédito con cuotas → dashboard cartera + asientos contables. Branding SUMOTO.
       PASÓ COMPLETO. Suite unitaria: 86 tests.
 
 ## En curso 🔨
+- [x] `exigirRol` (apps/backoffice/lib/auth.ts) delega la política de
+      autorización 100% al core: ya no hace `permitidos.includes(rol)` inline,
+      llama `seguridadService().tieneAcceso(userId, permitidos)`. `lib/` queda
+      como puro traductor a HTTP (401/403); la decisión de "quién puede qué"
+      vive en `SeguridadService` (2026-07-12).
 - [ ] Recorrido de demo en navegador: `pnpm --filter backoffice dev` →
       login vendedor@sumoto.co / sumoto123 → /solicitudes/nueva (cédula
       terminada en 4-9 aprueba, 2-3 revisión, 0-1 niega) → login
@@ -107,6 +112,48 @@ crédito con cuotas → dashboard cartera + asientos contables. Branding SUMOTO.
   cliente `authenticated` (no service_role), las compensaciones de la saga serían
   no-op silencioso. Resolver JUNTO con la decisión de cliente Supabase en fase UI
   (revisión arquitecto 2026-07-11)
+
+### Outbox persistente del event bus (diseño, 2026-07-12)
+Hoy `EventBus` (kernel/event-bus.ts) vive solo en memoria: si el proceso muere
+entre completar un paso de saga y que el subscriber termine (ej. pago guardado
+pero contabilidad no alcanzó a generar el asiento), el evento se pierde para
+siempre y nadie se entera — riesgo aceptado en demo, inaceptable en producción.
+- Tabla `kernel.eventos_salientes` (o por schema de módulo): id, nombre,
+  payload jsonb, correlacion_id, estado (pendiente/procesado/fallido),
+  intentos, creado_en.
+- El evento se inserta en la MISMA transacción que el hecho de negocio (mismo
+  repositorio/RPC que guarda el pago/crédito/asiento) — ahí está la garantía:
+  si el commit no pasa, el evento tampoco existe.
+- Un despachador aparte (poller o `pg_notify`) lee pendientes, invoca los
+  subscribers con reintento y backoff, marca procesado.
+- Consecuencia obligatoria: los subscribers deben ser IDEMPOTENTES (recibir el
+  mismo evento dos veces no debe duplicar asientos ni reventar). Los de hoy
+  (contabilidad, originación) no lo son todavía — se revisa al implementar esto.
+- Encaja con Medusa v2: ellos ya persisten el estado de ejecución de workflows
+  (`workflow_execution`) exactamente por esta razón.
+
+### Cliente por-request con JWT + cookie de sesión (diseño, 2026-07-12)
+Hoy el core opera con UN cliente `service_role` (privilegios plenos, RLS no
+aplica en su camino); la seguridad depende de que el proxy + `exigirRol`
+validen bien. Decisión de Julián: NO instanciar un cliente Supabase por
+request (evita el costo de armar un container "scoped" en cada llamada).
+En su lugar:
+- Al hacer login, además de las cookies de sesión de Supabase Auth, se firma
+  una cookie propia (httpOnly, firmada/encriptada) con el payload mínimo del
+  perfil: `{ userId, rol, tiendaId }` — la misma forma que hoy devuelve
+  `SeguridadService.perfilDe()`.
+- Las rutas/actions leen esa cookie (sin ida a la base) para decisiones de UI
+  rápidas; para RLS real de punta a punta, el JWT de Supabase Auth (que YA
+  viaja en las cookies de `@supabase/ssr`) se adjunta a las queries que deban
+  respetar RLS por fila — vía un cliente Supabase construido con ese JWT SOLO
+  en los puntos que lo necesiten (ej. una vista con RLS activo), no como
+  reemplazo del `service_role` del core.
+- Requiere completar las políticas DELETE/UPDATE en cartera/links que hoy
+  faltan (ver ítem de arriba) para que las compensaciones de saga no sean
+  no-op silencioso bajo un rol `authenticated`.
+- Punto de partida YA HECHO: `SeguridadService.tieneAcceso(userId, roles)`
+  en el core, consumido por `lib/auth.ts` — la política de autorización ya
+  no vive en la app, que es el prerequisito de este diseño.
 
 ## Siguiente (en orden) 📋
 3. Módulo `contabilidad`: subscribers a cartera.credito.desembolsado y
@@ -192,4 +239,25 @@ crédito con cuotas → dashboard cartera + asientos contables. Branding SUMOTO.
   bypassa RLS pero no los grants. Migración 20260712163738 + default privileges.
   Regla aprendida: TODA migración que cree tablas declara sus grants explícitos,
   también en public.
+- 2026-07-12 (domingo): corrección de arquitectura señalada por Julián — el
+  backoffice consultaba vistas de reporteria directo contra Supabase. Nuevos
+  módulos: `reporteria` (ReporteriaService: resumenCartera, moraPorFranja,
+  recaudoMensual — completa el service.ts que inició Julián: import, errores
+  propagados, tipos, module.ts) y `seguridad` (SeguridadService.perfilDe — el
+  perfil viene del core; el plumbing de cookies queda en la app; auth NO va en
+  el kernel). supabaseAdmin ya NO se exporta de lib/core-server.
+- 2026-07-12 (domingo): backoffice migrado a SSR puro — login por server action
+  (credenciales nunca tocan JS del navegador) y wizard del vendedor multi-paso
+  con actions + searchParams. Nuevas lecturas en fachadas:
+  ClientesService.buscarPorCedula, OriginacionService.solicitudEvaluada.
+- 2026-07-12 (domingo): FIX crash de /cartera — "Invalid schema: reporteria":
+  PostgREST solo carga api.schemas de config.toml AL ARRANCAR sus contenedores;
+  `db reset` NO los reinicia. Regla: tras editar config.toml →
+  `pnpm supabase stop && pnpm supabase start`.
+- 2026-07-12 (domingo): RegistrarAsiento convertido a workflow con compensación
+  (encabezado sin partidas = asiento huérfano, ya imposible; el despacho a World
+  Office es best-effort y nunca revierte el asiento). Login valida forma con
+  LoginRequestSchema de @sumo/contracts. Doctrina de workflows aclarada:
+  reporteria y seguridad NO llevan workflow porque no MUTAN nada (solo lectura)
+  — las sagas protegen mutaciones multi-paso, no consultas. Suite: 87 tests.
 - (agregar nuevas decisiones aquí con fecha)

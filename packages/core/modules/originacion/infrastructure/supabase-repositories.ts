@@ -67,6 +67,42 @@ export class RepositorioSolicitudesSupabase implements RepositorioSolicitudes {
     if (error) throw new Error(`[originacion] error actualizando estado: ${error.message}`);
   }
 
+  async buscarPorId(solicitudId: string): Promise<Solicitud | null> {
+    const { data, error } = await this.supabase
+      .schema("originacion")
+      .from("solicitudes")
+      .select()
+      .eq("id", solicitudId)
+      .maybeSingle<FilaSolicitud>();
+    if (error) throw new Error(`[originacion] error buscando solicitud: ${error.message}`);
+    return data ? aSolicitud(data) : null;
+  }
+
+  async buscarDecision(solicitudId: string): Promise<Decision | null> {
+    const { data, error } = await this.supabase
+      .schema("originacion")
+      .from("decisiones")
+      .select("resultado, razones, score, cuota_estimada_centavos")
+      .eq("solicitud_id", solicitudId)
+      .order("evaluado_en", { ascending: false })
+      .limit(1)
+      .maybeSingle<{
+        resultado: Decision["resultado"];
+        razones: string[];
+        score: number | null;
+        cuota_estimada_centavos: number | null;
+      }>();
+    if (error) throw new Error(`[originacion] error buscando decisión: ${error.message}`);
+    return data
+      ? {
+          resultado: data.resultado,
+          razones: data.razones ?? [],
+          score: data.score ?? 0,
+          cuotaEstimadaCentavos: Number(data.cuota_estimada_centavos ?? 0),
+        }
+      : null;
+  }
+
   async eliminar(solicitudId: string): Promise<void> {
     const { error } = await this.supabase
       .schema("originacion")

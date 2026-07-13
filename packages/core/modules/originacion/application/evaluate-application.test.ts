@@ -77,6 +77,12 @@ class SolicitudesEnMemoria implements RepositorioSolicitudes {
   async eliminarDecisiones() {
     this.decisiones = [];
   }
+  async buscarPorId(solicitudId: string) {
+    return this.guardadas.find((s) => s.id === solicitudId) ?? null;
+  }
+  async buscarDecision() {
+    return this.decisiones[this.decisiones.length - 1] ?? null;
+  }
 }
 
 class RiesgoFijo implements ConsultorRiesgo {

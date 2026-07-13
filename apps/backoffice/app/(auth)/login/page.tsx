@@ -1,41 +1,29 @@
-"use client";
+// Server component puro: el form postea a la server action (funciona sin JS).
 
-import { createBrowserClient } from "@supabase/ssr";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { ingresar } from "./actions";
 
-function FormularioLogin() {
-  const router = useRouter();
-  const params = useSearchParams();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(
-    params.get("denegado") ? "Tu rol no tiene acceso a esa sección." : null,
-  );
-  const [cargando, setCargando] = useState(false);
+const MENSAJES: Record<string, string> = {
+  credenciales: "Credenciales inválidas.",
+  "sin-perfil": "Tu usuario no tiene perfil asignado.",
+  "faltan-datos": "Correo y contraseña son obligatorios.",
+};
 
-  async function ingresar(e: React.FormEvent) {
-    e.preventDefault();
-    setCargando(true);
-    setError(null);
-    const supabase = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    );
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      setError("Credenciales inválidas.");
-      setCargando(false);
-      return;
-    }
-    router.push("/");
-    router.refresh();
-  }
+export default async function Login({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; denegado?: string }>;
+}) {
+  const params = await searchParams;
+  const mensaje = params.denegado
+    ? "Tu rol no tiene acceso a esa sección."
+    : params.error
+      ? (MENSAJES[params.error] ?? "No fue posible ingresar.")
+      : null;
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-zinc-950">
       <form
-        onSubmit={ingresar}
+        action={ingresar}
         className="w-full max-w-sm rounded-2xl bg-zinc-900 p-8 shadow-xl border border-zinc-800"
       >
         <h1 className="text-3xl font-black tracking-tight text-white">
@@ -49,9 +37,8 @@ function FormularioLogin() {
           Correo
           <input
             type="email"
+            name="email"
             required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
             placeholder="vendedor@sumoto.co"
             className="mt-1 w-full rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-2 text-white placeholder-zinc-500 focus:outline-none focus:border-red-500"
           />
@@ -60,31 +47,21 @@ function FormularioLogin() {
           Contraseña
           <input
             type="password"
+            name="password"
             required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
             className="mt-1 w-full rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-2 text-white focus:outline-none focus:border-red-500"
           />
         </label>
 
-        {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
+        {mensaje && <p className="mt-4 text-sm text-red-400">{mensaje}</p>}
 
         <button
           type="submit"
-          disabled={cargando}
-          className="mt-6 w-full rounded-lg bg-red-600 py-2.5 font-semibold text-white hover:bg-red-500 disabled:opacity-50"
+          className="mt-6 w-full rounded-lg bg-red-600 py-2.5 font-semibold text-white hover:bg-red-500"
         >
-          {cargando ? "Ingresando…" : "Ingresar"}
+          Ingresar
         </button>
       </form>
     </main>
-  );
-}
-
-export default function Login() {
-  return (
-    <Suspense>
-      <FormularioLogin />
-    </Suspense>
   );
 }

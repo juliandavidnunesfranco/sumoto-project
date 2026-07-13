@@ -1,103 +1,43 @@
-"use client";
+// Flujo estrella del vendedor — 100% SSR (server component + server actions).
+// El paso del wizard vive en searchParams: ?cedula= (paso 2), ?solicitudId=
+// (resultado). CERO lógica de negocio: todo lo deciden las fachadas del core.
 
-// Flujo estrella del vendedor: escanear cédula → armar solicitud → decisión
-// en vivo con razones. CERO lógica de negocio aquí: todo lo decide el core
-// vía las rutas API.
+import Link from "next/link";
+import { clientesService, originacionService } from "@/lib/core-server";
+import { pesos } from "@/lib/format";
+import { escanearCedula, evaluarSolicitud } from "./actions";
 
-import type {
-  ClienteResponse,
-  DecisionResponse,
-  ProductoResponse,
-} from "@sumo/contracts";
-import { useEffect, useState } from "react";
-import { pesos, pesosACentavos } from "@/lib/format";
+export const dynamic = "force-dynamic";
 
-export default function NuevaSolicitud() {
-  // paso 1: cliente
-  const [cedula, setCedula] = useState("");
-  const [cliente, setCliente] = useState<ClienteResponse | null>(null);
-  const [escaneando, setEscaneando] = useState(false);
+const ESTILOS_RESULTADO: Record<string, string> = {
+  APROBADO: "bg-emerald-950 border-emerald-500 text-emerald-300",
+  NEGADO: "bg-red-950 border-red-500 text-red-300",
+  REVISION_MANUAL: "bg-amber-950 border-amber-500 text-amber-300",
+};
+const TITULOS: Record<string, string> = {
+  APROBADO: "✓ APROBADO",
+  NEGADO: "✗ NEGADO",
+  REVISION_MANUAL: "⏳ REVISIÓN MANUAL",
+};
 
-  // paso 2: solicitud
-  const [productos, setProductos] = useState<ProductoResponse[]>([]);
-  const [productoId, setProductoId] = useState("");
-  const [valorMoto, setValorMoto] = useState("");
-  const [cuotaInicial, setCuotaInicial] = useState("");
-  const [plazo, setPlazo] = useState("24");
-  const [ingresos, setIngresos] = useState("");
-  const [evaluando, setEvaluando] = useState(false);
+export default async function NuevaSolicitud({
+  searchParams,
+}: {
+  searchParams: Promise<{ cedula?: string; solicitudId?: string; error?: string }>;
+}) {
+  const params = await searchParams;
+  const errores = params.error ? params.error.split("|") : [];
 
-  // paso 3: resultado
-  const [decision, setDecision] = useState<DecisionResponse | null>(null);
-  const [errores, setErrores] = useState<string[]>([]);
-
-  useEffect(() => {
-    fetch("/api/productos")
-      .then((r) => r.json())
-      .then((lista: ProductoResponse[]) => {
-        setProductos(lista);
-        if (lista[0]) setProductoId(lista[0].id);
-      })
-      .catch(() => setErrores(["no se pudieron cargar los productos"]));
-  }, []);
-
-  async function escanearCedula() {
-    setEscaneando(true);
-    setErrores([]);
-    setDecision(null);
-    const r = await fetch("/api/clientes", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fuente: "escaner", codigo: cedula }),
-    });
-    const cuerpo = await r.json();
-    if (!r.ok) {
-      setErrores(cuerpo.errores ?? cuerpo.detalles ?? [cuerpo.error ?? "error escaneando"]);
-      setCliente(null);
-    } else {
-      setCliente(cuerpo);
-    }
-    setEscaneando(false);
-  }
-
-  async function evaluar(e: React.FormEvent) {
-    e.preventDefault();
-    if (!cliente) return;
-    setEvaluando(true);
-    setErrores([]);
-    setDecision(null);
-    const r = await fetch("/api/solicitudes/evaluar", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        clienteId: cliente.id,
-        cedula: cliente.cedula,
-        productoId,
-        valorMotoCentavos: pesosACentavos(Number(valorMoto)),
-        cuotaInicialCentavos: pesosACentavos(Number(cuotaInicial || "0")),
-        plazoMeses: Number(plazo),
-        ingresosDeclaradosCentavos: pesosACentavos(Number(ingresos)),
-      }),
-    });
-    const cuerpo = await r.json();
-    if (!r.ok) {
-      setErrores(cuerpo.errores ?? cuerpo.detalles ?? [cuerpo.error ?? "error evaluando"]);
-    } else {
-      setDecision(cuerpo);
-    }
-    setEvaluando(false);
-  }
-
-  const estilosResultado: Record<DecisionResponse["resultado"], string> = {
-    APROBADO: "bg-emerald-950 border-emerald-500 text-emerald-300",
-    NEGADO: "bg-red-950 border-red-500 text-red-300",
-    REVISION_MANUAL: "bg-amber-950 border-amber-500 text-amber-300",
-  };
-  const titulos: Record<DecisionResponse["resultado"], string> = {
-    APROBADO: "✓ APROBADO",
-    NEGADO: "✗ NEGADO",
-    REVISION_MANUAL: "⏳ REVISIÓN MANUAL",
-  };
+  // datos del paso actual, resueltos en el servidor vía fachadas del core
+  const cliente = params.cedula
+    ? await clientesService().buscarPorCedula(params.cedula)
+    : null;
+  const productos = cliente
+    ? await originacionService().listarProductosActivos()
+    : [];
+  const evaluada = params.solicitudId
+    ? await originacionService().solicitudEvaluada(params.solicitudId)
+    : null;
 
   return (
     <main className="min-h-screen bg-zinc-950 text-white px-6 py-10">
@@ -108,44 +48,51 @@ export default function NuevaSolicitud() {
         </h1>
 
         {/* Paso 1: cliente */}
-        <section className="mt-8 rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-          <h2 className="font-semibold text-zinc-200">1 · Cliente</h2>
-          <div className="mt-3 flex gap-3">
-            <input
-              value={cedula}
-              onChange={(e) => setCedula(e.target.value)}
-              placeholder="Número de cédula"
-              className="flex-1 rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-2 focus:outline-none focus:border-red-500"
-            />
-            <button
-              onClick={escanearCedula}
-              disabled={escaneando || cedula.length < 6}
-              className="rounded-lg bg-red-600 px-4 py-2 font-semibold hover:bg-red-500 disabled:opacity-40"
-            >
-              {escaneando ? "Escaneando…" : "📷 Escanear cédula"}
-            </button>
-          </div>
-          {cliente && (
-            <p className="mt-3 text-sm text-emerald-400">
-              ✓ {cliente.nombres} {cliente.apellidos} — CC {cliente.cedula}
-              {cliente.ciudad ? ` · ${cliente.ciudad}` : ""}
-            </p>
-          )}
-        </section>
+        {!evaluada && (
+          <form
+            action={escanearCedula}
+            className="mt-8 rounded-2xl border border-zinc-800 bg-zinc-900 p-6"
+          >
+            <h2 className="font-semibold text-zinc-200">1 · Cliente</h2>
+            <div className="mt-3 flex gap-3">
+              <input
+                name="cedula"
+                required
+                minLength={6}
+                defaultValue={params.cedula ?? ""}
+                placeholder="Número de cédula"
+                className="flex-1 rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-2 focus:outline-none focus:border-red-500"
+              />
+              <button
+                type="submit"
+                className="rounded-lg bg-red-600 px-4 py-2 font-semibold hover:bg-red-500"
+              >
+                📷 Escanear cédula
+              </button>
+            </div>
+            {cliente && (
+              <p className="mt-3 text-sm text-emerald-400">
+                ✓ {cliente.nombres} {cliente.apellidos} — CC {cliente.cedula}
+                {cliente.ciudad ? ` · ${cliente.ciudad}` : ""}
+              </p>
+            )}
+          </form>
+        )}
 
         {/* Paso 2: solicitud */}
-        {cliente && (
+        {cliente && !evaluada && (
           <form
-            onSubmit={evaluar}
+            action={evaluarSolicitud}
             className="mt-6 rounded-2xl border border-zinc-800 bg-zinc-900 p-6"
           >
             <h2 className="font-semibold text-zinc-200">2 · Crédito</h2>
+            <input type="hidden" name="clienteId" value={cliente.id} />
+            <input type="hidden" name="cedula" value={cliente.cedula} />
             <div className="mt-3 grid grid-cols-2 gap-4">
               <label className="col-span-2 text-sm text-zinc-400">
                 Producto
                 <select
-                  value={productoId}
-                  onChange={(e) => setProductoId(e.target.value)}
+                  name="productoId"
                   className="mt-1 w-full rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-2 text-white"
                 >
                   {productos.map((p) => (
@@ -160,10 +107,9 @@ export default function NuevaSolicitud() {
                 Valor de la moto (COP)
                 <input
                   type="number"
+                  name="valorMoto"
                   required
                   min={1}
-                  value={valorMoto}
-                  onChange={(e) => setValorMoto(e.target.value)}
                   placeholder="8000000"
                   className="mt-1 w-full rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-2 text-white"
                 />
@@ -172,9 +118,9 @@ export default function NuevaSolicitud() {
                 Cuota inicial (COP)
                 <input
                   type="number"
+                  name="cuotaInicial"
                   min={0}
-                  value={cuotaInicial}
-                  onChange={(e) => setCuotaInicial(e.target.value)}
+                  defaultValue={0}
                   placeholder="2000000"
                   className="mt-1 w-full rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-2 text-white"
                 />
@@ -183,10 +129,10 @@ export default function NuevaSolicitud() {
                 Plazo (meses)
                 <input
                   type="number"
+                  name="plazo"
                   required
                   min={1}
-                  value={plazo}
-                  onChange={(e) => setPlazo(e.target.value)}
+                  defaultValue={24}
                   className="mt-1 w-full rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-2 text-white"
                 />
               </label>
@@ -194,10 +140,9 @@ export default function NuevaSolicitud() {
                 Ingresos mensuales (COP)
                 <input
                   type="number"
+                  name="ingresos"
                   required
                   min={1}
-                  value={ingresos}
-                  onChange={(e) => setIngresos(e.target.value)}
                   placeholder="3000000"
                   className="mt-1 w-full rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-2 text-white"
                 />
@@ -205,10 +150,9 @@ export default function NuevaSolicitud() {
             </div>
             <button
               type="submit"
-              disabled={evaluando}
-              className="mt-5 w-full rounded-lg bg-red-600 py-2.5 font-semibold hover:bg-red-500 disabled:opacity-40"
+              className="mt-5 w-full rounded-lg bg-red-600 py-2.5 font-semibold hover:bg-red-500"
             >
-              {evaluando ? "Consultando buró y evaluando…" : "Evaluar solicitud"}
+              Evaluar solicitud
             </button>
           </form>
         )}
@@ -223,25 +167,35 @@ export default function NuevaSolicitud() {
         )}
 
         {/* Paso 3: decisión */}
-        {decision && (
+        {evaluada && (
           <section
-            className={`mt-6 rounded-2xl border-2 p-6 ${estilosResultado[decision.resultado]}`}
+            className={`mt-8 rounded-2xl border-2 p-6 ${ESTILOS_RESULTADO[evaluada.decision.resultado]}`}
           >
             <div className="flex items-baseline justify-between">
-              <h2 className="text-2xl font-black">{titulos[decision.resultado]}</h2>
-              <span className="text-sm opacity-80">score {decision.score}</span>
+              <h2 className="text-2xl font-black">
+                {TITULOS[evaluada.decision.resultado]}
+              </h2>
+              <span className="text-sm opacity-80">
+                score {evaluada.decision.score}
+              </span>
             </div>
-            {decision.cuotaEstimadaCentavos > 0 && (
+            {evaluada.decision.cuotaEstimadaCentavos > 0 && (
               <p className="mt-2 text-lg">
                 Cuota mensual estimada:{" "}
-                <strong>{pesos(decision.cuotaEstimadaCentavos)}</strong>
+                <strong>{pesos(evaluada.decision.cuotaEstimadaCentavos)}</strong>
               </p>
             )}
             <ul className="mt-4 space-y-1 text-sm opacity-90">
-              {decision.razones.map((r) => (
+              {evaluada.decision.razones.map((r) => (
                 <li key={r}>• {r}</li>
               ))}
             </ul>
+            <Link
+              href="/solicitudes/nueva"
+              className="mt-6 inline-block rounded-lg bg-zinc-800 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-700"
+            >
+              ← Nueva solicitud
+            </Link>
           </section>
         )}
       </div>

@@ -18,6 +18,9 @@ export const TOKENS = {
   consultorRiesgo: "integracion.riesgo", // Experian
   fuenteIdentidad: "integracion.identidad", // escáner de cédula del tercero
   sistemaContable: "integracion.contable", // World Office
+
+  reporteriaService: "modulo.reporteria.service",
+  seguridadService: "modulo.seguridad.service",
 } as const;
 
 export type Token = (typeof TOKENS)[keyof typeof TOKENS];

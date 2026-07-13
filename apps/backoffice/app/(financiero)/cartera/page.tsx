@@ -1,32 +1,12 @@
-// Dashboard de cartera (financiero/ceo): lee las vistas de reporteria.
-// Server component: cero lógica — las vistas ya calculan todo en la base.
+// Dashboard de cartera (financiero/ceo): server component que consulta la
+// fachada ReporteriaService del core — la app jamás toca la base directo.
 
-import { supabaseAdmin } from "@/lib/core-server";
+import { reporteriaService } from "@/lib/core-server";
 import { pesos } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
-interface Resumen {
-  creditos_activos: number;
-  cartera_total_centavos: number;
-  cartera_vencida_centavos: number;
-  icv: number | null;
-}
-interface Franja {
-  franja_mora: string;
-  creditos: number;
-  capital_pendiente_centavos: number;
-}
-interface Recaudo {
-  mes: string;
-  pagos: number;
-  recaudo_centavos: number;
-  mora_centavos: number;
-  interes_centavos: number;
-  capital_centavos: number;
-}
-
-const ORDEN_FRANJAS = ["0-30", "31-60", "61-90", "90+"];
+const ORDEN_FRANJAS = ["0-30", "31-60", "61-90", "90+"] as const;
 const COLORES_FRANJAS: Record<string, string> = {
   "0-30": "bg-emerald-500",
   "31-60": "bg-amber-500",
@@ -35,28 +15,21 @@ const COLORES_FRANJAS: Record<string, string> = {
 };
 
 export default async function DashboardCartera() {
-  const reporteria = supabaseAdmin.schema("reporteria");
-  const [resumenQ, franjasQ, recaudoQ] = await Promise.all([
-    reporteria.from("resumen_cartera").select().single<Resumen>(),
-    reporteria.from("mora_por_franja").select().returns<Franja[]>(),
-    reporteria
-      .from("recaudo_mensual")
-      .select()
-      .order("mes", { ascending: false })
-      .limit(6)
-      .returns<Recaudo[]>(),
+  const svc = reporteriaService();
+  const [resumen, porFranja, recaudo] = await Promise.all([
+    svc.resumenCartera(),
+    svc.moraPorFranja(),
+    svc.recaudoMensual(),
   ]);
 
-  const resumen = resumenQ.data;
   const franjas = ORDEN_FRANJAS.map(
     (f) =>
-      franjasQ.data?.find((x) => x.franja_mora === f) ?? {
+      porFranja.find((x) => x.franja_mora === f) ?? {
         franja_mora: f,
         creditos: 0,
         capital_pendiente_centavos: 0,
       },
   );
-  const recaudo = recaudoQ.data ?? [];
   const maxFranja = Math.max(
     ...franjas.map((f) => f.capital_pendiente_centavos),
     1,
