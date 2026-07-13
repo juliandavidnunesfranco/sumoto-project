@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { obtenerSesion } from "@/lib/auth";
+import { exigirRol } from "@/lib/auth";
 import { PanelShell } from "@/components/panel/panel-shell";
 
 export default async function ManagerLayout({
@@ -7,7 +7,7 @@ export default async function ManagerLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const sesion = await obtenerSesion();
-  if (!sesion) redirect("/login");
+  const sesion = await exigirRol(["manager"]);
+  if (sesion instanceof Response) redirect("/login?denegado=1");
   return <PanelShell sesion={sesion}>{children}</PanelShell>;
 }

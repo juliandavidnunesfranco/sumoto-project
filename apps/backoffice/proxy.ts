@@ -10,7 +10,11 @@ type Rol = "vendedor" | "manager" | "financiero" | "contable" | "ceo";
 // prefijo de ruta → roles que pueden entrar
 const ACCESOS: Array<[prefijo: string, roles: Rol[]]> = [
   ["/solicitudes", ["vendedor", "manager"]],
-  ["/cartera", ["manager", "financiero", "contable", "ceo"]],
+  ["/cartera", ["financiero"]],
+  ["/politicas", ["financiero"]],
+  ["/tienda", ["manager"]],
+  ["/contabilidad", ["contable"]],
+  ["/ceo", ["ceo"]],
 ];
 
 export async function proxy(request: NextRequest) {
@@ -58,5 +62,12 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/solicitudes/:path*", "/cartera/:path*"],
+  matcher: [
+    "/solicitudes/:path*",
+    "/cartera/:path*",
+    "/politicas/:path*",
+    "/tienda/:path*",
+    "/contabilidad/:path*",
+    "/ceo/:path*",
+  ],
 };

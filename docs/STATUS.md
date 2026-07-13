@@ -87,6 +87,36 @@ crédito con cuotas → dashboard cartera + asientos contables. Branding SUMOTO.
       (24 cuotas, cuota == la prometida) → pago → solicitud desembolsada por
       subscriber + 2 asientos cuadrados despachados a WO mock + link creado.
       PASÓ COMPLETO. Suite unitaria: 86 tests.
+- [x] Capacidad `financiero`: crear producto de crédito + editar sus reglas de
+      decisión + simulador de decisión sin persistir (2026-07-13). Dominio:
+      `crearProducto`/`actualizarReglas`/`validarReglasDecision` (acumulan TODAS
+      las violaciones, no cortocircuitan) en `credit-product.ts` (10 tests
+      nuevos); casos de uso `CrearProductoCredito`/`ActualizarReglasDecision`;
+      `OriginacionService.simularDecision` corre el motor real contra un
+      producto candidato sin guardarlo. RLS: solo `rol_actual() = 'financiero'`
+      escribe en `productos_credito`. Zod en `@sumo/contracts/schemas/
+      manage-credit-product.ts` valida forma en la frontera.
+- [x] Reporteria: 3 vistas nuevas para manager/contable/ceo con datos REALES
+      (cero mocks) — `cartera_por_tienda`, `solicitudes_recientes`,
+      `asientos_recientes` (`security_invoker`), expuestas en
+      `ReporteriaService.carteraPorTienda/solicitudesRecientes/
+      asientosRecientes`.
+- [x] Port completo del diseño visual v0 (`~/Descargas/V0-Sumoto/
+      sumoto-credit-platform`) al backoffice real, MISMA arquitectura SSR
+      (2026-07-13): tema oscuro OKLCH en globals.css, `Marca`, `GaugeScore`,
+      `Button` (CVA + @base-ui/react), átomos de presentación en
+      `components/panel/ui.tsx` (PageHeader/Tarjeta/Kpi/EstadoBadge/
+      BarraHorizontal/ColumnasMensuales), `PanelShell` con sesión/rol reales.
+      Rechazado explícitamente del mockup: su auth con cookie sin firmar
+      (falsificable) y su motor de decisión/amortización duplicado
+      client-side (violación regla 1) — NINGUNO de los dos se portó.
+      Config de nav por rol en `lib/roles-nav.ts` (políticas vive dentro de
+      financiero, no es rol aparte). Las 5 pantallas por rol (vendedor,
+      manager, financiero×2, contable, ceo) reskinned sobre las MISMAS
+      fachadas del core, cero lógica de negocio nueva en la app.
+      `proxy.ts` actualizado con los 4 prefijos nuevos (`/politicas`,
+      `/tienda`, `/contabilidad`, `/ceo`). Verificado: 97/97 tests core,
+      typecheck limpio, `pnpm --filter backoffice build` exitoso (8 rutas).
 
 ## En curso 🔨
 - [x] `exigirRol` (apps/backoffice/lib/auth.ts) delega la política de
@@ -94,10 +124,12 @@ crédito con cuotas → dashboard cartera + asientos contables. Branding SUMOTO.
       llama `seguridadService().tieneAcceso(userId, permitidos)`. `lib/` queda
       como puro traductor a HTTP (401/403); la decisión de "quién puede qué"
       vive en `SeguridadService` (2026-07-12).
-- [ ] Recorrido de demo en navegador: `pnpm --filter backoffice dev` →
-      login vendedor@sumoto.co / sumoto123 → /solicitudes/nueva (cédula
-      terminada en 4-9 aprueba, 2-3 revisión, 0-1 niega) → login
-      financiero@sumoto.co → /cartera. Pulir detalles visuales que aparezcan.
+- [ ] Recorrido de demo en navegador con el diseño nuevo, los 5 roles:
+      `pnpm --filter backoffice dev` → vendedor@sumoto.co (/solicitudes/nueva,
+      cédula 4-9 aprueba/2-3 revisión/0-1 niega) → manager@sumoto.co (/tienda)
+      → financiero@sumoto.co (/cartera y /politicas: crear producto, editar
+      reglas, simular) → contable@sumoto.co (/contabilidad) → ceo@sumoto.co
+      (/ceo). Typecheck+build ya verdes; falta el recorrido visual en vivo.
 
 ## Backlog no bloqueante 📥
 - Regla de edad por producto (18–70) en reglas_decision JSONB del motor
@@ -260,4 +292,31 @@ En su lugar:
   LoginRequestSchema de @sumo/contracts. Doctrina de workflows aclarada:
   reporteria y seguridad NO llevan workflow porque no MUTAN nada (solo lectura)
   — las sagas protegen mutaciones multi-paso, no consultas. Suite: 87 tests.
+- 2026-07-13 (lunes): revisado el mockup v0 de Julián (Vercel v0,
+  `~/Descargas/V0-Sumoto/sumoto-credit-platform`) SOLO como referencia visual.
+  Su auth (cookie base64url sin firmar, `USUARIOS_DEMO` hardcodeado) y su motor
+  de decisión/amortización duplicado en `lib/credito.ts` del lado cliente
+  quedaron explícitamente descartados por violar reglas 1 y 6 — no se porta
+  ninguno de los dos, solo tokens de diseño y componentes de presentación pura.
+- 2026-07-13 (lunes): "políticas de crédito" NO es un rol nuevo — decisión de
+  Julián: el financiero, además de ver KPIs de cartera, crea el producto de
+  crédito y administra sus reglas de decisión. Pantalla `/politicas` vive
+  bajo el mismo rol `financiero`, misma RLS.
+- 2026-07-13 (lunes): cliente por-request con JWT/cookie propia sigue
+  backlogueado sin implementar (ver diseño arriba) — evaluado explícitamente
+  con Julián y descartado para el alcance de la demo; no bloquea nada de lo
+  entregado hoy.
+- 2026-07-13 (lunes): FIX seguridad — los 5 layouts por rol ((vendedor)
+  (manager) (financiero) (contable) (ceo)) solo llamaban `obtenerSesion()`
+  (¿hay sesión?) sin validar ROL, dependiendo 100% de que `proxy.ts` gatee
+  bien cada prefijo. Detectado por revisión automática de seguridad: un
+  cambio futuro al `matcher`/ACCESOS de `proxy.ts` habría quitado la única
+  puerta sin que ningún layout lo notara. Corregido: los 5 layouts ahora
+  llaman `exigirRol([...])` (ya existía, ya usado en server actions) —
+  segunda puerta real en cada uno, no solo en el edge. De paso, se detectó
+  que la entrada `/cartera` en `proxy.ts` seguía permitiendo
+  manager/contable/ceo (arrastre de cuando /cartera era el único dashboard,
+  antes de que cada rol tuviera el suyo): se acotó a `["financiero"]`, que
+  es lo único que hoy enlaza `lib/roles-nav.ts`. Verificado: typecheck limpio
+  + build exitoso tras el fix.
 - (agregar nuevas decisiones aquí con fecha)
