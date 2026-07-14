@@ -9,9 +9,19 @@ export interface Solicitud {
   id?: string;
   clienteId: string;
   productoId: string;
+  // moto elegida por el vendedor (módulo catalogo): referencia plana sin FK
+  // cruzada (regla 3), igual que clienteId/productoId — se conoce desde que
+  // se crea la solicitud, no nace como efecto de un workflow aparte.
+  motoId: string;
   tiendaId: string;
+  // usuario (vendedor/manager) que originó la solicitud — viene de la
+  // SESIÓN del servidor, jamás del formulario
+  creadoPor: string;
   valorMotoCentavos: number;
   cuotaInicialCentavos: number;
+  // papelería, SOAT y similares: los elige el vendedor por solicitud, no son
+  // atributo fijo de la moto — se suman al monto a financiar.
+  cargosAdicionalesCentavos?: number;
   plazoMeses: number;
   ingresosDeclaradosCentavos: number;
   estado: EstadoSolicitud;
@@ -19,9 +29,12 @@ export interface Solicitud {
 
 export interface DatosSolicitud {
   clienteId: string;
+  motoId: string;
   tiendaId: string;
+  creadoPor: string;
   valorMotoCentavos: number;
   cuotaInicialCentavos: number;
+  cargosAdicionalesCentavos?: number;
   plazoMeses: number;
   ingresosDeclaradosCentavos: number;
 }
@@ -53,6 +66,12 @@ export function crearSolicitud(
     violaciones.push("la cuota inicial debe ser menor al valor de la moto");
   }
   if (
+    datos.cargosAdicionalesCentavos !== undefined &&
+    (!Number.isInteger(datos.cargosAdicionalesCentavos) || datos.cargosAdicionalesCentavos < 0)
+  ) {
+    violaciones.push("los cargos adicionales deben ser un entero en centavos, cero o más");
+  }
+  if (
     datos.plazoMeses < producto.plazoMinMeses ||
     datos.plazoMeses > producto.plazoMaxMeses
   ) {
@@ -66,8 +85,13 @@ export function crearSolicitud(
   ) {
     violaciones.push("los ingresos declarados deben ser un entero en centavos mayor a cero");
   }
-  if (datos.clienteId.trim() === "" || datos.tiendaId.trim() === "") {
-    violaciones.push("cliente y tienda son obligatorios");
+  if (
+    datos.clienteId.trim() === "" ||
+    datos.tiendaId.trim() === "" ||
+    datos.motoId.trim() === "" ||
+    datos.creadoPor.trim() === ""
+  ) {
+    violaciones.push("cliente, tienda, moto y usuario creador son obligatorios");
   }
 
   if (violaciones.length > 0) return fallo(violaciones);
@@ -82,6 +106,11 @@ export function crearSolicitud(
 export function montoAFinanciarCentavos(solicitud: {
   valorMotoCentavos: number;
   cuotaInicialCentavos: number;
+  cargosAdicionalesCentavos?: number;
 }): number {
-  return solicitud.valorMotoCentavos - solicitud.cuotaInicialCentavos;
+  return (
+    solicitud.valorMotoCentavos -
+    solicitud.cuotaInicialCentavos +
+    (solicitud.cargosAdicionalesCentavos ?? 0)
+  );
 }

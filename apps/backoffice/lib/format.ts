@@ -25,3 +25,14 @@ export function pesosCompacto(centavos: number): string {
 export function pesosACentavos(pesos: number): number {
   return Math.round(pesos * 100);
 }
+
+/** Edad en años cumplidos a partir de una fecha de nacimiento ISO (yyyy-mm-dd). */
+export function edadDesde(fechaNacimientoIso: string, hoy: Date = new Date()): number {
+  const nacimiento = new Date(`${fechaNacimientoIso}T00:00:00`);
+  let edad = hoy.getFullYear() - nacimiento.getFullYear();
+  const aunNoCumple =
+    hoy.getMonth() < nacimiento.getMonth() ||
+    (hoy.getMonth() === nacimiento.getMonth() && hoy.getDate() < nacimiento.getDate());
+  if (aunNoCumple) edad -= 1;
+  return edad;
+}

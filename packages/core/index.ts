@@ -8,5 +8,6 @@ export * from "./modules/cartera/index";
 export * from "./modules/contabilidad/index";
 export * from "./modules/reporteria/index";
 export * from "./modules/seguridad/index";
+export * from "./modules/catalogo/index";
 export * from "./shared/finance";
 export * from "./shared/dates";

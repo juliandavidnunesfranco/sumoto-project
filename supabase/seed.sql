@@ -17,7 +17,8 @@ declare
     {"id":"a0000000-0000-4000-8000-000000000002","email":"manager@sumoto.co","rol":"manager","nombre":"Mario Manager","tienda":"11111111-1111-4111-8111-111111111111"},
     {"id":"a0000000-0000-4000-8000-000000000003","email":"financiero@sumoto.co","rol":"financiero","nombre":"Fernanda Financiera","tienda":null},
     {"id":"a0000000-0000-4000-8000-000000000004","email":"contable@sumoto.co","rol":"contable","nombre":"Carlos Contable","tienda":null},
-    {"id":"a0000000-0000-4000-8000-000000000005","email":"ceo@sumoto.co","rol":"ceo","nombre":"Camila CEO","tienda":null}
+    {"id":"a0000000-0000-4000-8000-000000000005","email":"ceo@sumoto.co","rol":"ceo","nombre":"Camila CEO","tienda":null},
+    {"id":"a0000000-0000-4000-8000-000000000006","email":"vendedor.medellin@sumoto.co","rol":"vendedor","nombre":"Víctor Vendedor","tienda":"22222222-2222-4222-8222-222222222222"}
   ]';
   u jsonb;
 begin
@@ -60,7 +61,28 @@ insert into originacion.productos_credito
      "cuota_maxima_porcentaje_ingreso": 0.30, "ltv_maximo": 0.80,
      "ingreso_minimo_centavos": 300000000, "mora_maxima_dias": 30}');
 
--- 4. 18 créditos con historia (cliente + solicitud + decisión + crédito +
+-- 4. Catálogo de motos (módulo catalogo) — contado y crédito son precios
+--    DISTINTOS a propósito. `imagen` guarda solo el nombre del objeto en el
+--    bucket Storage "motos" (público); la URL pública la resuelve el
+--    repositorio del core, no aquí. ---------------------------------------------
+insert into catalogo.motos
+  (nombre, categoria, imagen, precio_contado_centavos, precio_credito_centavos,
+   cilindraje, potencia, frenos, rendimiento)
+values
+  ('SUMOTO Street 125', 'Urbana', 'street-125.png',
+   720000000, 830000000, '125cc', '10,5 HP', 'Disco/Tambor', '45 km/l'),
+  ('SUMOTO Trail 200', 'Doble propósito', 'trail-200.png',
+   1150000000, 1320000000, '200cc', '18 HP', 'Disco/Disco', '38 km/l'),
+  ('SUMOTO Sport 250', 'Deportiva', 'sport-250.png',
+   1680000000, 1930000000, '250cc', '27 HP', 'Disco ABS', '30 km/l'),
+  ('SUMOTO Cargo 150', 'Trabajo', 'cargo-150.png',
+   890000000, 1020000000, '150cc', '12 HP', 'Disco/Tambor', '42 km/l'),
+  ('SUMOTO Scooter 125', 'Scooter', 'scooter-125.png',
+   780000000, 900000000, '125cc', '9 HP', 'CBS', '48 km/l'),
+  ('SUMOTO Naked 300', 'Naked', 'naked-300.png',
+   2150000000, 2480000000, '300cc', '34 HP', 'Disco ABS', '26 km/l');
+
+-- 5. 18 créditos con historia (cliente + solicitud + decisión + crédito +
 --    plan francés + pagos según su categoría de mora) --------------------------
 do $$
 declare
@@ -72,7 +94,7 @@ declare
   tasa_mora constant numeric := 0.38;
 
   i int; plazo int; n int;
-  tienda uuid; v_cliente uuid; v_solicitud uuid; v_credito uuid; v_pago uuid;
+  tienda uuid; v_cliente uuid; v_solicitud uuid; v_credito uuid; v_pago uuid; v_moto uuid;
   cuota_row record;
   valor_moto bigint; cuota_inicial bigint; monto bigint; ingresos bigint;
   i_m numeric; cuota bigint; interes bigint; capital bigint; saldo bigint;
@@ -109,12 +131,21 @@ begin
        ingresos, case when i % 3 = 0 then 'escaner' else 'entrada_manual' end, tienda)
     returning id into v_cliente;
 
-    -- solicitud evaluada y desembolsada + decisión APROBADO
+    -- moto financiada (cualquiera del catálogo ya sembrado arriba)
+    select id into v_moto from catalogo.motos order by random() limit 1;
+
+    -- solicitud evaluada y desembolsada + decisión APROBADO;
+    -- creado_por = el vendedor de la tienda correspondiente
     insert into originacion.solicitudes
-      (cliente_id, producto_id, tienda_id, valor_moto_centavos,
-       cuota_inicial_centavos, plazo_meses, ingresos_declarados_centavos, estado, creado_en)
-    values (v_cliente, producto, tienda, valor_moto, cuota_inicial, plazo,
-            ingresos, 'desembolsada', desembolso - 2)
+      (cliente_id, producto_id, moto_id, tienda_id, valor_moto_centavos,
+       cuota_inicial_centavos, plazo_meses, ingresos_declarados_centavos, estado, creado_en,
+       creado_por)
+    values (v_cliente, producto, v_moto, tienda, valor_moto, cuota_inicial, plazo,
+            ingresos, 'desembolsada', desembolso - 2,
+            case when tienda = tiendas[1]
+              then 'a0000000-0000-4000-8000-000000000001'::uuid
+              else 'a0000000-0000-4000-8000-000000000006'::uuid
+            end)
     returning id into v_solicitud;
 
     -- cuota francesa (misma fórmula del core: EA -> mensual)

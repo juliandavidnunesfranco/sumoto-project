@@ -10,7 +10,7 @@ enabled = true
 port = 54321
 # Schemas to expose in your API. Tables, views and stored procedures in this schema will get API
 # endpoints. `public` and `graphql_public` schemas are included by default.
-schemas = ["public", "graphql_public", "clientes", "originacion", "cartera", "links", "contabilidad", "reporteria"]
+schemas = ["public", "graphql_public", "clientes", "originacion", "cartera", "links", "contabilidad", "reporteria", "catalogo"]
 # Extra schemas to add to the search_path of every request.
 extra_search_path = ["public", "extensions"]
 # The maximum number of rows returns from a view, table, or stored procedure. Limits payload size
@@ -122,6 +122,14 @@ file_size_limit = "50MiB"
 # public = false
 # file_size_limit = "50MiB"
 # allowed_mime_types = ["image/png", "image/jpeg"]
+
+# Catálogo de motos (módulo catalogo): público (fotos de producto, no datos
+# sensibles) y poblado desde el repo — nada se sube a mano por Studio.
+[storage.buckets.motos]
+public = true
+file_size_limit = "5MiB"
+allowed_mime_types = ["image/png", "image/jpeg"]
+objects_path = "./seed-assets/motos"
 # objects_path = "./images"
 
 # Allow connections via S3 compatible clients

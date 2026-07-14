@@ -9,8 +9,10 @@ export const EvaluarSolicitudRequestSchema = z.object({
     message: "la cédula debe tener entre 6 y 10 dígitos",
   }),
   productoId: z.uuid(),
+  motoId: z.uuid(),
   valorMotoCentavos: z.number().int().positive(),
   cuotaInicialCentavos: z.number().int().nonnegative(),
+  cargosAdicionalesCentavos: z.number().int().nonnegative().default(0),
   plazoMeses: z.number().int().positive(),
   ingresosDeclaradosCentavos: z.number().int().positive(),
 });

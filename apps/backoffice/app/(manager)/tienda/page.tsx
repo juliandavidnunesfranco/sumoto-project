@@ -12,9 +12,13 @@ export default async function TiendaPage() {
   const sesion = await obtenerSesion();
   const svc = reporteriaService();
 
+  // manager sin tienda asignada = estado anómalo: lista vacía, nunca alcance
+  // nacional (omitir tiendaId traería solicitudes de TODAS las tiendas)
   const [porTienda, solicitudes] = await Promise.all([
     svc.carteraPorTienda(),
-    svc.solicitudesRecientes({ tiendaId: sesion?.tiendaId ?? undefined, limite: 15 }),
+    sesion?.tiendaId
+      ? svc.solicitudesRecientes({ tiendaId: sesion.tiendaId, limite: 15 })
+      : Promise.resolve([]),
   ]);
   const miTienda = porTienda.find((t) => t.tienda_id === sesion?.tiendaId);
   const aprobadas = solicitudes.filter((s) => s.decision_resultado === "APROBADO").length;

@@ -27,7 +27,9 @@ const PRODUCTO: ProductoCredito = {
 const SOLICITUD: Solicitud = {
   clienteId: "cli-1",
   productoId: "prod-1",
+  motoId: "moto-1",
   tiendaId: "tienda-1",
+  creadoPor: "vendedor-1",
   valorMotoCentavos: 800_000_000,
   cuotaInicialCentavos: 200_000_000,
   plazoMeses: 24,

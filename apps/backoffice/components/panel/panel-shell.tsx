@@ -8,6 +8,7 @@ import type { Sesion } from "@/lib/auth";
 import { ROLES } from "@/lib/roles-nav";
 import { cerrarSesion } from "@/app/(auth)/login/actions";
 import { cn } from "@/lib/cn";
+import { InputBusqueda } from "@/components/shared/input-busqueda";
 import {
   Sidebar,
   SidebarContent,
@@ -26,7 +27,7 @@ import {
 // transparente en reposo), se completa a un marco entero en hover, animando
 // el COLOR del borde (no su ancho, eso no se puede transicionar suave).
 const enlaceEstiloSuzuki =
-  "rounded-none p-2 font-headline text-sm font-bold text-foreground transition-colors duration-200 hover:border border-black hover:bg-transparent hover:text-foreground data-active:border-black data-active:bg-transparent data-active:font-bold data-active:text-foreground";
+  "rounded-none border border-transparent p-2 font-headline text-sm font-bold text-foreground transition-colors duration-200 hover:border-black hover:bg-transparent hover:text-foreground data-active:border-black data-active:bg-transparent data-active:font-bold data-active:text-foreground";
 
 export function PanelShell({
   sesion,
@@ -118,9 +119,18 @@ export function PanelShell({
       <SidebarInset>
         <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-border bg-background/80 px-4 py-3 backdrop-blur md:px-6">
           <SidebarTrigger />
-          <span className="ml-auto text-sm text-muted-foreground">
-            {sesion.tiendaId ? "Tienda asignada" : "Alcance nacional"}
-          </span>
+          {sesion.rol === "vendedor" ? (
+            <InputBusqueda
+              param="q"
+              ruta="/buscar"
+              placeholder="Buscar cliente por nombre o cédula…"
+              className="ml-auto w-full max-w-xs"
+            />
+          ) : (
+            <span className="ml-auto text-sm text-muted-foreground">
+              {sesion.tiendaId ? "Tienda asignada" : "Alcance nacional"}
+            </span>
+          )}
         </header>
 
         <main className="flex-1 px-4 py-6 md:px-6 lg:px-8">{children}</main>

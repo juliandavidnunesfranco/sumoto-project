@@ -8,6 +8,7 @@ import {
   resolver,
   TOKENS,
   type CarteraService,
+  type CatalogoService,
   type ClientesService,
   type ContabilidadService,
   type OriginacionService,
@@ -36,3 +37,5 @@ export const reporteriaService = () =>
   resolver<ReporteriaService>(TOKENS.reporteriaService);
 export const seguridadService = () =>
   resolver<SeguridadService>(TOKENS.seguridadService);
+export const catalogoService = () =>
+  resolver<CatalogoService>(TOKENS.catalogoService);

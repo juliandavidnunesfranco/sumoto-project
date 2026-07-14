@@ -1,6 +1,6 @@
 // ÚNICA puerta importable del módulo originacion (regla 2).
 
-export type { ReporteRiesgo } from "./domain/risk-report";
+export type { ReporteRiesgo, VectorPago } from "./domain/risk-report";
 export type { ConsultorRiesgo } from "./domain/risk-advisor";
 export {
   crearProducto,

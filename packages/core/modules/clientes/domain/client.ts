@@ -13,6 +13,8 @@ export interface Cliente {
   email?: string;
   direccion?: string;
   ciudad?: string;
+  estrato?: number;
+  geoCoincide?: boolean;
   ingresosDeclaradosCentavos?: number; // dinero: entero en centavos, nunca float
   fuenteIdentidad: FuenteDeDatos;
   tiendaId: string;
@@ -44,6 +46,8 @@ export function crearCliente(
     email: datos.email,
     direccion: datos.direccion,
     ciudad: datos.ciudad,
+    estrato: datos.estrato,
+    geoCoincide: datos.geoCoincide,
     ingresosDeclaradosCentavos: registro.ingresosDeclaradosCentavos,
     fuenteIdentidad: registro.fuenteIdentidad,
     tiendaId: registro.tiendaId,
@@ -90,6 +94,12 @@ export function validarParaRegistro(
     !esMayorDeEdad(datos.fechaNacimiento)
   ) {
     violaciones.push("el cliente debe ser mayor de 18 años");
+  }
+  if (
+    datos.estrato !== undefined &&
+    (!Number.isInteger(datos.estrato) || datos.estrato < 1 || datos.estrato > 6)
+  ) {
+    violaciones.push("el estrato debe ser un entero entre 1 y 6");
   }
   if (
     registro.ingresosDeclaradosCentavos !== undefined &&

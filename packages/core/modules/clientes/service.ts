@@ -20,4 +20,8 @@ export class ClientesService {
   buscarPorCedula(cedula: string) {
     return this.repositorio.buscarPorCedula(cedula);
   }
+
+  buscarClientes(query: string, tiendaId?: string) {
+    return this.repositorio.buscar(query, tiendaId);
+  }
 }

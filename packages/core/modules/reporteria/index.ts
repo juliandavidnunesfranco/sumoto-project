@@ -5,6 +5,7 @@ export {
   type AsientoReciente,
   type CarteraPorTienda,
   type MoraPorFranja,
+  type PaginaSolicitudes,
   type RecaudoMensual,
   type ResumenCartera,
   type SolicitudReciente,

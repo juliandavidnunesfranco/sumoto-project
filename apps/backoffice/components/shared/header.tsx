@@ -22,7 +22,7 @@ export function Header({className}:{className?:string}){
 
         </div>
             <Link href="/login">
-               <span className="text-4xl font-headline font-black hover:border border-b-black p-4  hover:text-muted-foreground transition ">Ingresar</span> 
+               <span className="border border-transparent text-4xl font-headline font-black hover:border-black p-4 hover:text-muted-foreground transition-colors duration-200">Ingresar</span>
             </Link>
     </header>
 

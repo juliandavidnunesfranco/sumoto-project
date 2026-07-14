@@ -43,6 +43,15 @@ export interface SolicitudReciente {
   cliente_nombre: string | null;
   decision_resultado: string | null;
   cuota_estimada_centavos: number | null;
+  cliente_cedula: string | null;
+  cliente_telefono: string | null;
+  plazo_meses: number;
+  creado_por: string;
+}
+
+export interface PaginaSolicitudes {
+  items: SolicitudReciente[];
+  total: number;
 }
 
 export interface AsientoReciente {
@@ -108,6 +117,8 @@ export class ReporteriaService {
       .schema("reporteria")
       .from("solicitudes_recientes")
       .select()
+      // el ORDER BY de la vista no sobrevive a PostgREST: se pide explícito
+      .order("creado_en", { ascending: false })
       .limit(opciones.limite ?? 20);
     if (opciones.tiendaId) {
       consulta = consulta.eq("tienda_id", opciones.tiendaId);
@@ -115,6 +126,33 @@ export class ReporteriaService {
     const { data, error } = await consulta.returns<SolicitudReciente[]>();
     if (error) throw new Error(`[reporteria] error leyendo solicitudes recientes: ${error.message}`);
     return data ?? [];
+  }
+
+  // "Mis solicitudes" paginada: el vendedor acota por creadoPor, el manager
+  // por tiendaId — mismo criterio de alcance que la RLS de lectura.
+  async solicitudesPaginadas(opciones: {
+    tiendaId?: string;
+    creadoPor?: string;
+    pagina: number;
+    porPagina: number;
+  }): Promise<PaginaSolicitudes> {
+    const pagina = Math.max(1, opciones.pagina);
+    const porPagina = Math.max(1, opciones.porPagina);
+    const desde = (pagina - 1) * porPagina;
+
+    let consulta = this.supabase
+      .schema("reporteria")
+      .from("solicitudes_recientes")
+      .select("*", { count: "exact" })
+      .order("creado_en", { ascending: false });
+    if (opciones.tiendaId) consulta = consulta.eq("tienda_id", opciones.tiendaId);
+    if (opciones.creadoPor) consulta = consulta.eq("creado_por", opciones.creadoPor);
+
+    const { data, error, count } = await consulta
+      .range(desde, desde + porPagina - 1)
+      .returns<SolicitudReciente[]>();
+    if (error) throw new Error(`[reporteria] error paginando solicitudes: ${error.message}`);
+    return { items: data ?? [], total: count ?? 0 };
   }
 
   async asientosRecientes(limite = 20): Promise<AsientoReciente[]> {

@@ -19,9 +19,12 @@ export interface ComandoEvaluarSolicitud {
   clienteId: string;
   cedula: string; // para la consulta de riesgo (la aporta quien ya registró al cliente)
   productoId: string;
+  motoId: string;
   tiendaId: string;
+  creadoPor: string;
   valorMotoCentavos: number;
   cuotaInicialCentavos: number;
+  cargosAdicionalesCentavos?: number;
   plazoMeses: number;
   ingresosDeclaradosCentavos: number;
 }

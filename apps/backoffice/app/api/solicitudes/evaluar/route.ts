@@ -18,9 +18,11 @@ export async function POST(request: Request) {
   const validacion = await conValidacion(EvaluarSolicitudRequestSchema, request);
   if (!validacion.ok) return validacion.respuesta;
 
+  // tiendaId y creadoPor salen de la SESIÓN, nunca del body del request
   const resultado = await originacionService().evaluarSolicitud({
     ...validacion.datos,
     tiendaId: sesion.tiendaId,
+    creadoPor: sesion.userId,
   });
 
   if (!resultado.ok) {

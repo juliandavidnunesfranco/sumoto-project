@@ -184,6 +184,40 @@ crédito con cuotas → dashboard cartera + asientos contables. Branding SUMOTO.
       marco entero en hover, con transición de color de 200ms (no de ancho,
       eso no anima suave). Verificado en navegador: colapsado, tooltip, móvil
       (390px), build de producción.
+- [x] Wizard del vendedor completo, fiel al diseño de v0 pero con lógica REAL
+      (2026-07-13): descompuesto en componentes chicos bajo
+      `components/vendedor/` (`galeria-motos`, `tarjeta-cliente`,
+      `tarjeta-decision`, `plan-de-pagos`, `subir-documentos`,
+      `descargas-documento`) en vez de un solo archivo de 500+ líneas.
+      - Galería decorativa de 6 motos (`lib/motos-catalogo.ts`, mismas fotos
+        ya usadas en el sitio) — elegir una solo pre-llena el precio del
+        formulario real, con check visual de seleccionada.
+      - `OriginacionService.consultarRiesgo(cedula)`: nuevo método delgado
+        para mostrar el score justo tras escanear, antes de armar el crédito.
+      - **Dominio real extendido** (no UI inventada): `ReporteRiesgo` ahora
+        incluye `reportesNegativos` y `vectoresPago[]` (entidad/tipo/saldo/
+        días mora — lo que un buró real reporta); `Cliente`/`DatosCiudadano`
+        ahora incluyen `estrato` (1-6, validado) y `geoCoincide`. Poblados en
+        `ExperianMock`/`EscanerCedulaMock` de forma determinista por cédula.
+        Migración `20260713221609` agrega las columnas a
+        `clientes.clientes`. 103/103 tests (6 nuevos de validación de
+        estrato).
+      - Plan de pagos preview con `generarPlanDePagos` (@sumo/core, LA MISMA
+        función que cartera usará al desembolsar — nunca se duplicó la
+        matemática en la app). Bug propio encontrado y corregido: se le
+        pasaba `.toISOString()` completo (con hora) a una función que espera
+        fecha plana `yyyy-mm-dd`, dando fechas "2026-08-Na" en la tabla.
+      - Pagaré y CSV de descarga, marcados explícitamente "DOCUMENTO DE
+        DEMOSTRACIÓN — SIN VALIDEZ LEGAL" (decisión de Julián, dado que es
+        contenido con apariencia legal generado en el navegador).
+      - Navegación entre pasos con Tabs de shadcn (`collapsible` por
+        disponibilidad: no se puede saltar a un paso sin los datos previos),
+        reemplazando las tarjetas apiladas — resuelve la queja de "wizard muy
+        largo". Requirió `nativeButton={false}` en `TabsTrigger` al usar
+        `render={<Link/>}` (si no, Base UI advierte por semántica de botón).
+      - Rechazado explícitamente del mockup: el motor de decisión y el
+        escaneo de cédula corriendo 100% en el cliente — se usan las
+        fachadas reales del core en ambos casos.
 
 ## En curso 🔨
 - [x] `exigirRol` (apps/backoffice/lib/auth.ts) delega la política de
@@ -197,6 +231,38 @@ crédito con cuotas → dashboard cartera + asientos contables. Branding SUMOTO.
       → financiero@sumoto.co (/cartera y /politicas: crear producto, editar
       reglas, simular) → contable@sumoto.co (/contabilidad) → ceo@sumoto.co
       (/ceo). Typecheck+build ya verdes; falta el recorrido visual en vivo.
+- [x] Módulo `catalogo` (motos con precio contado/crédito), buscador de
+      clientes en el header (solo vendedor) y buscador+paginación de motos en
+      el wizard, cargos adicionales seleccionables por solicitud — 103/103
+      tests, typecheck limpio, build exitoso, recorrido E2E en navegador
+      verificado (login → buscar cliente → elegir moto con búsqueda/filtro →
+      armar crédito con cargos → decisión con LTV correcto) (2026-07-14).
+- [x] **BUG de imágenes en producción — RESUELTO** (2026-07-14, madrugada):
+      los 2 usos decorativos (`app/page.tsx` home y `app/(auth)/login/page.tsx`)
+      que apuntaban a `/motos/*.png` movidos al bucket — se copiaron
+      `sport-250.png` y `naked-300.png` de vuelta a `public/motos/` (quedan
+      duplicados a propósito: bucket = catálogo, public = marketing/login).
+      Verificado en navegador: ambas cargan.
+- [ ] **Ruido en logs de producción, no bloqueante pero feo para una demo en
+      vivo** (2026-07-14): tras un `supabase db reset` (que regenera todos
+      los `auth.users` con ids nuevos), una cookie de sesión vieja en el
+      navegador dispara `AuthApiError: Invalid Refresh Token: Refresh Token
+      Not Found` en el server log de `next start` — no rompe nada (el login
+      sigue funcionando), pero ensucia la consola. **Mitigación para la demo:
+      navegador en incógnito.** Fix de código pendiente: capturar
+      `refresh_token_not_found` donde se llama
+      `supabase.auth.getUser()`/`getSession()` y limpiar cookie / redirigir
+      a `/login`.
+- [x] **Buscador SSR reutilizable — RESUELTO** (2026-07-14, madrugada): nuevo
+      `components/shared/input-busqueda.tsx` (client mínimo: SOLO narra la
+      URL con debounce; el fetch siempre es del server component contra la
+      fachada del core). Lo usan el header (→ página `/buscar` SSR nueva, con
+      dos puertas: proxy.ts + layout) y la galería de motos. El buscador
+      client-side viejo (`buscador-header/` con server action + dropdown) fue
+      ELIMINADO. **Bug de debounce corregido**: el useEffect que sincronizaba
+      URL→input pisaba el texto mientras se escribía (se "borraba y
+      reaparecía"); ahora solo sincroniza cuando el input no tiene el foco.
+      Verificado en navegador con escritura + navegaciones en vuelo.
 
 ## Backlog no bloqueante 📥
 - Regla de edad por producto (18–70) en reglas_decision JSONB del motor
@@ -404,7 +470,7 @@ En su lugar:
   manager/contable/ceo (arrastre de cuando /cartera era el único dashboard,
   antes de que cada rol tuviera el suyo): se acotó a `["financiero"]`, que
   es lo único que hoy enlaza `lib/roles-nav.ts`. Verificado: typecheck limpio
-  + build exitoso tras el fix.
+  y build exitoso tras el fix.
 - 2026-07-13 (lunes): Julián empezó a re-estilar el backoffice hacia una
   identidad visual tipo Suzuki (globalsuzuki.com) — fondo blanco, azul
   corporativo — en vez del tema oscuro que se había portado de v0. FIX de
@@ -442,4 +508,159 @@ En su lugar:
   muestre íconos (con tooltip) en vez de ocultarse del todo. El logo cambia
   entre el wordmark completo (expandido) y `sumoto-s-icon-128.png` (ícono
   cuadrado, colapsado) vía `group-data-[collapsible=icon]:hidden`/`:block`.
+- 2026-07-13 (lunes): al portar el paso 1 del wizard de v0 (tarjeta de
+  cliente + riesgo), decisión con Julián sobre 4 datos que v0 mostraba sin
+  respaldo real: (1) vectores de pago por entidad y reportes negativos —
+  SÍ se modelan como extensión real de `ReporteRiesgo`/`ExperianMock` (es
+  literalmente lo que un buró real reporta, no dato inventado sin sentido);
+  (2) estrato y dirección — SÍ, extendidos en `Cliente`/`EscanerCedulaMock`
+  (dirección ya existía en el tipo, solo faltaba poblarla); (3)
+  geo-coincidencia — se agrega como mock también aunque hoy no hay ninguna
+  captura real de geolocalización en el flujo (placeholder explícito hasta
+  que exista); (4) navegación entre pasos — Tabs de shadcn en vez de tarjetas
+  apiladas, deshabilitadas hasta que el paso previo tenga los datos que
+  necesita.
+- 2026-07-14 (martes): nuevo módulo `catalogo` (Moto: precio contado y precio
+  crédito SIEMPRE distintos, specs, imagen) — decisión con Julián de módulo
+  nuevo en vez de extender `originacion`, porque el catálogo de motos es un
+  concepto de negocio propio (inventario/pricing) sin relación de dominio con
+  solicitudes. Migración `catalogo.motos` con RLS de solo lectura; seed con 6
+  motos reales tomadas del screenshot de v0 (`Imagen_pegada_2.png`), specs y
+  precios distintos por unidad. `lib/motos-catalogo.ts` (catálogo decorativo
+  estático) ELIMINADO — ya no queda ninguna referencia, reemplazado 100% por
+  el módulo real.
+- 2026-07-14 (martes): dos buscadores nuevos, ambos vía fachada del core
+  (nunca Supabase directo desde la app), con debounce corto (250-300ms):
+  (1) buscador en el header de `PanelShell` (`components/shared/
+  buscador-header/`), solo visible para rol vendedor, reemplaza el texto
+  inerte "Tienda asignada" — busca clientes ya registrados por cédula/nombre
+  vía `ClientesService.buscarClientes` (nuevo método + `RepositorioClientes.
+  buscar`, acotado por `tiendaId` igual que la RLS de lectura); (2) buscador
+  de motos en el paso 2 del wizard (`components/vendedor/buscador-motos.tsx`)
+  que narra vía searchParams (`motoQuery`/`motoPagina`/`motoPorPagina`) contra
+  `CatalogoService.buscarMotos` — el fetch real ocurre en el server component
+  de la página, el cliente solo actualiza la URL (`router.replace`, sin
+  ensuciar el historial). Paginación (`PaginacionMotos`) con selector de
+  tamaño de página (10/20/40/50) vía Link + searchParams, cero JS.
+- 2026-07-14 (martes): cargos adicionales (papelería, SOAT, matrícula, seguro
+  de vida) — decisión explícita de Julián: seleccionables por el vendedor EN
+  CADA SOLICITUD (checkboxes en "Arma el crédito"), NO atributo fijo del
+  catálogo de motos. Nuevo campo opcional `cargosAdicionalesCentavos` en
+  `Solicitud`/`DatosSolicitud` (dominio `originacion`), sumado en
+  `montoAFinanciarCentavos` — afecta correctamente LTV y cuota estimada del
+  motor de decisión (probado en vivo: 2 cargos de 150k+450k subieron el LTV
+  de forma consistente con la fórmula). Migración agrega la columna con
+  default 0. Formulario usa el patrón nativo de checkboxes múltiples con el
+  mismo `name="cargo"` — la Server Action suma `formData.getAll("cargo")`,
+  cero JavaScript necesario.
+- 2026-07-14 (martes): imágenes del catálogo migradas a Supabase Storage
+  (bucket público `motos`) — decisión con Julián de bucket público (son fotos
+  de producto, no datos sensibles) poblado desde `supabase/seed-assets/motos/`
+  vía `[storage.buckets.motos]` en `config.toml` (`objects_path`), NO subido a
+  mano por Studio. `catalogo.motos.imagen` ahora guarda solo el nombre del
+  objeto; la URL pública la resuelve `RepositorioMotosSupabase` (infra, no
+  dominio) con `storage.from("motos").getPublicUrl()`. FIX encontrado en el
+  camino: el optimizador de imágenes de Next bloquea por SSRF cualquier IP
+  privada como origen (127.0.0.1 en local siempre cae ahí) — `next/image`
+  necesita `unoptimized` para estas imágenes remotas, `remotePatterns` solo
+  no alcanza.
+- 2026-07-14 (martes): hallazgo real al revisar con Julián cómo se relacionan
+  los módulos — `originacion.solicitudes` NO guardaba `moto_id` en ningún
+  lado (solo vivía en el searchParams del wizard); una vez evaluada la
+  solicitud no quedaba registro de qué moto se financió. Aclarada la regla
+  real de `links` vs columna plana: `links.solicitud_credito` existe porque
+  esa relación NACE como efecto secundario de un workflow multipaso
+  (desembolso) que puede revertirse a medio camino; `moto_id`, en cambio, se
+  conoce desde el momento en que se CREA la solicitud — mismo patrón que
+  `cliente_id`/`producto_id` (columna uuid plana, sin FK cruzada, regla 3).
+  Agregado en dominio (`Solicitud.motoId`, obligatorio), migración, mapper,
+  contrato Zod y `actions.ts` (el hidden input ya existía en el formulario,
+  pero no se estaba reenviando al core). Seed reordenado: el catálogo de
+  motos se siembra ANTES del loop de 18 créditos demo para poder asignarles
+  una moto real (`select id into v_moto from catalogo.motos order by
+  random()...`). Verificado: 103/103 tests, e2e completo (escaneo→
+  decisión→desembolso→pago→asientos) en verde, join `solicitudes.moto_id →
+  catalogo.motos` confirmado por psql en las 18 filas del seed.
+- 2026-07-14 (madrugada, pre-presentación): auditoría crítica completa con el
+  agente arquitecto-revisor (veredicto: núcleo APROBADO, 7 reglas sin
+  violaciones duras, dinero limpio, todas las actions con auth) + corrección
+  de TODO lo accionable en 4 bloques, verificado en navegador y con
+  103/103 tests:
+  (A) imágenes decorativas restauradas en `public/motos/` (home/login);
+  sidebar activo visible y patrón hover unificado en 8 sitios a
+  `border border-transparent hover:border-black` — el borde siempre ocupa
+  1px y solo cambia el color: sin salto de layout, que es lo que el
+  comentario de panel-shell describía desde el principio.
+  (B) SEGURIDAD: los cargos adicionales ahora viajan como ID y el monto se
+  resuelve en el servidor (un form manipulado ya no puede inventar montos —
+  verificado: mismo LTV 83.1%); scoping por tienda replicado en
+  `buscarPorCedula`/`solicitudEvaluada` del wizard, en `/buscar` y en
+  `(manager)/tienda` (sin tienda asignada = vacío, nunca alcance nacional);
+  `consultarRiesgo` solo corre cuando la pestaña activa es "cliente" (con
+  Experian real, cada render costaría una consulta al buró); CLAUDE.md
+  actualizado con `catalogo` y `seguridad` en la lista de módulos.
+  (C) cosméticos: `rounded-0`→`rounded-none`, `text-md`→`text-base`,
+  `font-heading`→`font-headline` en el título del paso 1, la búsqueda y
+  paginación de motos se conservan al seleccionar moto y al cambiar de
+  pestaña (helper `qsBase()` + prop `hrefMoto`), `marca.tsx` huérfano
+  eliminado, JSX limpio.
+  Deuda ACEPTADA y defendible (no corregida a conciencia): composición del
+  plan de pagos en la página (misma función pura del core, cero duplicación
+  de reglas); catálogo de cargos en `lib/` de la app (conceptos de negocio —
+  candidato a moverse al core con los productos); `console.log` del kernel
+  se DEJAN (muestran el bus de eventos en vivo durante la demo).
+- 2026-07-14 (madrugada): pantalla "Mis solicitudes" del vendedor
+  (`app/(vendedor)/solicitudes/page.tsx`, item nuevo en roles-nav): tabla SSR
+  sobre `reporteriaService().solicitudesRecientes` con acciones por fila —
+  ver en el wizard (`?solicitudId&paso=decision`), llamar (`tel:+57...`) y
+  WhatsApp (`wa.me/57...`). La vista `reporteria.solicitudes_recientes` se
+  extendió (migración `20260714043127`) con `cliente_cedula`,
+  `cliente_telefono` y `plazo_meses` (columnas AL FINAL: `create or replace
+  view` no permite alterar las existentes) y el service ahora ordena
+  explícito por `creado_en desc` (el ORDER BY de una vista no sobrevive a
+  PostgREST). LIMITACIÓN documentada: el alcance es por TIENDA, no por
+  usuario — `originacion.solicitudes` no registra quién la creó
+  (`creado_por` queda en backlog; hoy vendedor y manager de la misma tienda
+  ven las mismas filas).
+- 2026-07-14 (madrugada): controles de la galería de motos reubicados —
+  buscador arriba junto al h2; selector de tamaño de página y paginación
+  ABAJO de la galería (pedido explícito de Julián: "no estoy acostumbrado a
+  verla arriba"). La paginación ahora se muestra SIEMPRE (antes se ocultaba
+  con una sola página y parecía que faltaba), con botones deshabilitados si
+  no hay más páginas. `buscador-motos.tsx` eliminado: quedó `InputBusqueda`
+  (compartido) + `selector-por-pagina.tsx`.
+- 2026-07-14 (madrugada): aclarado el flujo de aprobación/desembolso con
+  Julián — el vendedor NO aprueba nada: la decisión la emite el motor
+  automáticamente al evaluar (APROBADO/NEGADO/REVISION_MANUAL). El
+  DESEMBOLSO es otro acto de negocio: el workflow con compensación
+  `CarteraService.desembolsarCredito` ya existe en el core (crédito + plan +
+  link + evento, cubierto por tests y usado en el seed/e2e), pero NO tiene
+  pantalla todavía — ninguna vista lo invoca. Pendiente de decidir con
+  Julián: qué rol desembolsa (candidato natural: financiero, o manager de
+  tienda) y dónde vive el botón. REVISION_MANUAL tampoco tiene bandeja de
+  revisión (nadie puede convertirla en aprobado/negado desde la UI).
+- 2026-07-14 (madrugada): `creado_por` en `originacion.solicitudes` —
+  discutido con Julián: él propuso tabla `links` (solicitud-cliente-perfil),
+  pero se aplicó la regla ya establecida (misma que `moto_id`): `links` es
+  para relaciones que NACEN de un workflow compensable; el creador se conoce
+  al CREAR la fila → columna plana `creado_por uuid not null references
+  public.perfiles (user_id)` — patrón idéntico a `tienda_id` (FK
+  módulo→public permitida). El valor sale SIEMPRE de la sesión del servidor
+  (action y ruta API), jamás del formulario: el navegador no puede atribuir
+  la solicitud a otro vendedor. Seed: segundo vendedor
+  (vendedor.medellin@sumoto.co, "Víctor Vendedor", tienda Medellín) para que
+  las 18 solicitudes demo tengan creador real por tienda (9 y 9).
+  "Mis solicitudes" ahora es literal: el VENDEDOR filtra por `creado_por`,
+  el MANAGER por tienda. Backlog saldado (era el ítem "creado_por").
+- 2026-07-14 (madrugada): paginación y selector de tamaño generalizados a
+  `components/shared/` (`paginacion.tsx` con sustantivo parametrizado,
+  `selector-por-pagina.tsx` con nombre de searchParam parametrizado — motos
+  usa motoPorPagina/motoPagina, solicitudes usa porPagina/pagina, sin
+  colisión). "Mis solicitudes" paginada vía nuevo
+  `ReporteriaService.solicitudesPaginadas` ({tiendaId?, creadoPor?, pagina,
+  porPagina} → {items, total} con count exacto). Ítem "Buscar cliente"
+  agregado al sidebar del vendedor (/buscar ya existía con dos puertas).
+  Verificado en navegador: sidebar con 3 ítems, 9 filas propias de
+  Valentina, evaluación nueva aparece de primera como "Evaluada" (10
+  solicitudes), 103/103 tests, typecheck limpio.
 - (agregar nuevas decisiones aquí con fecha)

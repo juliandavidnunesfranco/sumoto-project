@@ -12,11 +12,22 @@ import type {
   ReporteRiesgo,
 } from "../../modules/originacion/index";
 
+const ENTIDADES_DEMO = ["Bancolombia", "Nequi", "Davivienda", "Banco de Bogotá", "Falabella"];
+const PRODUCTOS_DEMO = ["Tarjeta de crédito", "Crédito de consumo", "Libranza"];
+
+interface LineaCreditoCruda {
+  entidad: string;
+  tipo_producto: string;
+  saldo_cop: number;
+  dias_mora: number;
+}
+
 // Forma del JSON que respondería el buró real (solo existe en este adaptador)
 interface RespuestaCrudaExperian {
   documento: string;
   puntaje: { valor: number; modelo: string };
-  historial: { peor_mora_12m_dias: number; saldo_total_cop: number };
+  historial: { peor_mora_12m_dias: number; saldo_total_cop: number; reporte_negativo: boolean };
+  lineas_credito: LineaCreditoCruda[];
   fecha_consulta: string;
 }
 
@@ -38,6 +49,13 @@ export class ExperianMock implements ConsultorRiesgo {
       score: cruda.puntaje.valor,
       moraMaximaDiasUltimos12Meses: cruda.historial.peor_mora_12m_dias,
       endeudamientoCentavos: cruda.historial.saldo_total_cop * 100,
+      reportesNegativos: cruda.historial.reporte_negativo,
+      vectoresPago: cruda.lineas_credito.map((l) => ({
+        entidad: l.entidad,
+        tipoProducto: l.tipo_producto,
+        saldoCentavos: l.saldo_cop * 100,
+        diasMora: l.dias_mora,
+      })),
       consultadoEn: cruda.fecha_consulta,
     });
   }
@@ -46,17 +64,29 @@ export class ExperianMock implements ConsultorRiesgo {
 function simularRespuestaDelBuro(cedula: string): RespuestaCrudaExperian {
   const ultimo = Number(cedula[cedula.length - 1]);
   const penultimo = Number(cedula[cedula.length - 2] ?? "0");
+  const numero = Number(cedula);
 
   const score =
     ultimo <= 1 ? 510 + ultimo * 30 : ultimo <= 3 ? 615 + (ultimo - 2) * 20 : 700 + (ultimo - 4) * 25;
+  const moraMaxima = penultimo === 9 ? 90 : penultimo >= 7 ? 30 : 0;
+
+  const cantidadLineas = 1 + (ultimo % 3);
+  const lineas: LineaCreditoCruda[] = Array.from({ length: cantidadLineas }, (_, i) => ({
+    entidad: ENTIDADES_DEMO[(numero + i) % ENTIDADES_DEMO.length],
+    tipo_producto: PRODUCTOS_DEMO[(numero + i) % PRODUCTOS_DEMO.length],
+    saldo_cop: ((numero + i * 37) % 20) * 100_000 + 200_000,
+    dias_mora: i === 0 ? moraMaxima : 0,
+  }));
 
   return {
     documento: cedula,
     puntaje: { valor: score, modelo: "HDC3-MOCK" },
     historial: {
-      peor_mora_12m_dias: penultimo === 9 ? 90 : penultimo >= 7 ? 30 : 0,
-      saldo_total_cop: (Number(cedula) % 7) * 1_500_000,
+      peor_mora_12m_dias: moraMaxima,
+      saldo_total_cop: lineas.reduce((suma, l) => suma + l.saldo_cop, 0),
+      reporte_negativo: penultimo === 9,
     },
+    lineas_credito: lineas,
     fecha_consulta: new Date().toISOString(),
   };
 }

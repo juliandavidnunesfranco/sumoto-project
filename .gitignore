@@ -25,3 +25,5 @@ supabase/.temp/
 # Claude
 .claude
 .remember
+# Artefactos de verificación en navegador (Playwright MCP)
+.playwright-mcp/

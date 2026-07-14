@@ -12,4 +12,6 @@ export interface DatosCiudadano {
   email?: string;
   direccion?: string;
   ciudad?: string;
+  estrato?: number; // 1-6, clasificación socioeconómica de la dirección
+  geoCoincide?: boolean; // la ubicación del escaneo coincide con la dirección reportada
 }

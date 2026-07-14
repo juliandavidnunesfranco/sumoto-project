@@ -75,8 +75,14 @@ modules/<nombre>/
 ├── module.ts        # ModuleDefinition: registrar() + suscripciones()
 └── index.ts         # ÚNICA puerta importable desde fuera del módulo
 ```
-Módulos: `clientes`, `originacion`, `cartera`, `contabilidad`, `reporteria` (reporteria
-es solo lectura: queries sobre vistas, sin domain).
+Módulos: `clientes`, `originacion`, `cartera`, `contabilidad`, `reporteria`,
+`seguridad`, `catalogo`. Los de SOLO LECTURA relajan la anatomía con criterio:
+`reporteria` (queries sobre vistas, sin domain) y `seguridad` no llevan
+workflows; `catalogo` (decisión 2026-07-14: módulo propio, no parte de
+originacion — el catálogo de motos es inventario/pricing, con precio de
+contado y de crédito SIEMPRE distintos) tiene domain puro pero no
+application/: leer un catálogo no es una acción de negocio, la fachada
+delega directo al repositorio.
 
 ### Integraciones (packages/core/integrations/)
 Patrón adaptador SIEMPRE: interfaz en el dominio, implementaciones intercambiables vía DI.

@@ -13,6 +13,8 @@ export interface FilaCliente {
   email: string | null;
   direccion: string | null;
   ciudad: string | null;
+  estrato: number | null;
+  geo_coincide: boolean | null;
   ingresos_declarados_centavos: number | null;
   fuente_identidad: FuenteDeDatos;
   tienda_id: string;
@@ -29,6 +31,8 @@ export function aCliente(fila: FilaCliente): Cliente {
     email: fila.email ?? undefined,
     direccion: fila.direccion ?? undefined,
     ciudad: fila.ciudad ?? undefined,
+    estrato: fila.estrato ?? undefined,
+    geoCoincide: fila.geo_coincide ?? undefined,
     ingresosDeclaradosCentavos: fila.ingresos_declarados_centavos ?? undefined,
     fuenteIdentidad: fila.fuente_identidad,
     tiendaId: fila.tienda_id,
@@ -45,6 +49,8 @@ export function aFilaNueva(cliente: Cliente): Omit<FilaCliente, "id"> {
     email: cliente.email ?? null,
     direccion: cliente.direccion ?? null,
     ciudad: cliente.ciudad ?? null,
+    estrato: cliente.estrato ?? null,
+    geo_coincide: cliente.geoCoincide ?? null,
     ingresos_declarados_centavos: cliente.ingresosDeclaradosCentavos ?? null,
     fuente_identidad: cliente.fuenteIdentidad,
     tienda_id: cliente.tiendaId,

@@ -7,7 +7,7 @@ import { RevealOnScroll } from "@/components/shared/reveal-on-scroll"
 
 const FEATURES = [
   {
-    titulo: "Escaneo de cédula.",
+    titulo: "Escaneo de cédula",
     texto: "La app lee la cédula y trae score, geolocalización y vectores de pago del solicitante en segundos.",
   },
   {
@@ -30,7 +30,7 @@ export default function LandingPage (){
         <div className="flex flex-col gap-6">
           
           <h1 className="text-balance font-headline text-4xl font-black leading-tight tracking-tight md:text-6xl ">
-            Financia cada moto <span className="text-primary">en minutos</span>, no en días.
+            Financia cada moto <span className="text-primary"><br/>en minutos</span>, no en días.
           </h1>
           <p className="max-w-md text-pretty leading-relaxed text-muted-foreground">
             SUMOTO Crédito conecta el escaneo de cédula, el buró de crédito y políticas de riesgo
@@ -39,7 +39,7 @@ export default function LandingPage (){
           <div className="flex flex-wrap items-center gap-6 py-16">
          
               <Link href="/login">
-               <span className="text-4xl font-headline font-black  p-4 transition-colors duration-200 hover:border border-black hover:text-muted-foreground">Ingresar</span>
+               <span className="border border-transparent text-4xl font-headline font-black p-4 transition-colors duration-200 hover:border-black hover:text-muted-foreground">Ingresar</span>
               </Link>
          
             <span className="text-sm text-muted-foreground">

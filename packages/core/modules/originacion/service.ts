@@ -18,6 +18,7 @@ import type { Decision } from "./domain/decision";
 import type { MotorDecision } from "./domain/decision-engine";
 import type { RepositorioProductos, RepositorioSolicitudes } from "./domain/repositories";
 import type { ConsultorRiesgo } from "./domain/risk-advisor";
+import type { ReporteRiesgo } from "./domain/risk-report";
 
 export interface ComandoSimularDecision {
   cedula: string;
@@ -67,6 +68,12 @@ export class OriginacionService {
     return this.casoActualizarReglas.ejecutar(productoId, reglasNuevas);
   }
 
+  // Consulta de riesgo aislada (sin evaluar solicitud todavía): para mostrar
+  // el score justo después de escanear la cédula, antes de armar el crédito.
+  consultarRiesgo(cedula: string): Promise<Resultado<ReporteRiesgo, string>> {
+    return this.consultorRiesgo.consultar(cedula);
+  }
+
   async solicitudEvaluada(solicitudId: string) {
     const [solicitud, decision] = await Promise.all([
       this.solicitudes.buscarPorId(solicitudId),
@@ -98,7 +105,9 @@ export class OriginacionService {
     const solicitudSimulada = {
       clienteId: "simulacion",
       productoId: productoCandidato.id,
+      motoId: "simulacion",
       tiendaId: "simulacion",
+      creadoPor: "simulacion",
       valorMotoCentavos: comando.valorMotoCentavos,
       cuotaInicialCentavos: comando.cuotaInicialCentavos,
       plazoMeses: comando.plazoMeses,

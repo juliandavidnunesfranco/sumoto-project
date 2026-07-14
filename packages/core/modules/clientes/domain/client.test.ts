@@ -77,6 +77,16 @@ describe("validarParaRegistro", () => {
     expect(violaciones).toHaveLength(1);
     expect(violaciones[0]).toContain("entero en centavos");
   });
+
+  it.each([1, 4, 6])("acepta estrato %i (dentro de 1-6)", (estrato) => {
+    expect(validarParaRegistro({ ...DATOS_OK, estrato }, REGISTRO_OK)).toEqual([]);
+  });
+
+  it.each([0, 7, 2.5])("rechaza estrato %s (fuera de 1-6 o no entero)", (estrato) => {
+    const violaciones = validarParaRegistro({ ...DATOS_OK, estrato }, REGISTRO_OK);
+    expect(violaciones).toHaveLength(1);
+    expect(violaciones[0]).toContain("estrato");
+  });
 });
 
 describe("crearCliente", () => {

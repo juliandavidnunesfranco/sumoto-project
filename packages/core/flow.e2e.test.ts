@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import { arrancarNucleo } from "./bootstrap";
 import { resolver, TOKENS } from "./kernel/container";
 import type { CarteraService } from "./modules/cartera/index";
+import type { CatalogoService } from "./modules/catalogo/index";
 import type { ClientesService } from "./modules/clientes/index";
 import type { OriginacionService } from "./modules/originacion/index";
 
@@ -27,6 +28,7 @@ describe("flujo completo de negocio contra Supabase local", () => {
     const clientes = resolver<ClientesService>(TOKENS.clientesService);
     const originacion = resolver<OriginacionService>(TOKENS.originacionService);
     const cartera = resolver<CarteraService>(TOKENS.carteraService);
+    const catalogo = resolver<CatalogoService>(TOKENS.catalogoService);
 
     // 1. registrar cliente vía escáner mock
     const registro = await clientes.registrarCliente({
@@ -39,14 +41,18 @@ describe("flujo completo de negocio contra Supabase local", () => {
     if (!registro.ok) return;
     const cliente = registro.valor;
 
-    // 2. evaluar solicitud (producto Moto Fácil del seed)
+    // 2. evaluar solicitud (producto Moto Fácil y una moto cualquiera del seed)
     const productos = await originacion.listarProductosActivos();
     const producto = productos.find((p) => p.nombre === "Moto Fácil")!;
+    const { items: motos } = await catalogo.buscarMotos({ pagina: 1, porPagina: 1 });
     const evaluacion = await originacion.evaluarSolicitud({
       clienteId: cliente.id!,
       cedula: CEDULA,
       productoId: producto.id,
+      motoId: motos[0].id,
       tiendaId: TIENDA,
+      // Valentina Vendedora (seed) — el perfil FK exige un usuario real
+      creadoPor: "a0000000-0000-4000-8000-000000000001",
       valorMotoCentavos: 800_000_000,
       cuotaInicialCentavos: 200_000_000,
       plazoMeses: 24,

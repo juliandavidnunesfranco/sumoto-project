@@ -27,7 +27,7 @@ function BotonIngresar() {
     <button
       type="submit"
       disabled={pending}
-      className="mt-2 w-fit self-center font-headline text-4xl font-black p-4 hover:text-muted-foreground  hover:border border-black disabled:opacity-60 transition-colors duration-200"
+      className="mt-2 w-fit self-center border border-transparent font-headline text-4xl font-black p-4 hover:text-muted-foreground hover:border-black disabled:opacity-60 transition-colors duration-200"
     >
       {pending ? "Ingresando…" : "Ingresar"}
     </button>
@@ -47,7 +47,7 @@ export function FormularioLogin({ mensaje, next }: { mensaje: string | null; nex
     <div className="w-full max-w-sm ">
       <Link
         href="/"
-        className="fixed top-10 left-4 flex items-center gap-2 font-headline text-2xl font-black  p-4  hover:text-muted-foreground hover:border border-black transition-colors duration-200"
+        className="fixed top-10 left-4 flex items-center gap-2 border border-transparent font-headline text-2xl font-black p-4 hover:text-muted-foreground hover:border-black transition-colors duration-200"
       >
         <ArrowLeft className="size-5" />
         Volver
@@ -115,7 +115,7 @@ export function FormularioLogin({ mensaje, next }: { mensaje: string | null; nex
               key={u.email}
               type="button"
               onClick={() => usarDemo(u.email)}
-              className="p-2 text-justify font-headline text-sm font-bold transition-colors duration-200 hover:border border-black hover:text-muted-foreground"
+              className="border border-transparent p-2 text-justify font-headline text-sm font-bold transition-colors duration-200 hover:border-black hover:text-muted-foreground"
             >
               {ROLES[u.rol].label}
             </button>

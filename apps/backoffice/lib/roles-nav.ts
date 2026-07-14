@@ -4,10 +4,12 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Calculator,
+  ClipboardList,
   FilePlus2,
   LayoutDashboard,
   ScrollText,
   Store,
+  UserSearch,
   Wallet,
 } from "lucide-react";
 import type { Rol } from "@sumo/core";
@@ -22,7 +24,11 @@ export const ROLES: Record<Rol, RolConfig> = {
   vendedor: {
     label: "Vendedor",
     descripcion: "Origina solicitudes de crédito en el punto de venta.",
-    nav: [{ label: "Nueva solicitud", href: "/solicitudes/nueva", icon: FilePlus2 }],
+    nav: [
+      { label: "Nueva solicitud", href: "/solicitudes/nueva", icon: FilePlus2 },
+      { label: "Mis solicitudes", href: "/solicitudes", icon: ClipboardList },
+      { label: "Buscar cliente", href: "/buscar", icon: UserSearch },
+    ],
   },
   manager: {
     label: "Manager de tienda",

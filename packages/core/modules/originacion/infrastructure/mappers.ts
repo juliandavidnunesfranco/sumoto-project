@@ -70,9 +70,12 @@ export interface FilaSolicitud {
   id: string;
   cliente_id: string;
   producto_id: string;
+  moto_id: string;
   tienda_id: string;
+  creado_por: string;
   valor_moto_centavos: number;
   cuota_inicial_centavos: number;
+  cargos_adicionales_centavos: number;
   plazo_meses: number;
   ingresos_declarados_centavos: number;
   estado: EstadoSolicitud;
@@ -83,9 +86,12 @@ export function aSolicitud(fila: FilaSolicitud): Solicitud {
     id: fila.id,
     clienteId: fila.cliente_id,
     productoId: fila.producto_id,
+    motoId: fila.moto_id,
     tiendaId: fila.tienda_id,
+    creadoPor: fila.creado_por,
     valorMotoCentavos: Number(fila.valor_moto_centavos),
     cuotaInicialCentavos: Number(fila.cuota_inicial_centavos),
+    cargosAdicionalesCentavos: Number(fila.cargos_adicionales_centavos),
     plazoMeses: fila.plazo_meses,
     ingresosDeclaradosCentavos: Number(fila.ingresos_declarados_centavos),
     estado: fila.estado,
@@ -96,9 +102,12 @@ export function aFilaSolicitudNueva(s: Solicitud): Omit<FilaSolicitud, "id"> {
   return {
     cliente_id: s.clienteId,
     producto_id: s.productoId,
+    moto_id: s.motoId,
     tienda_id: s.tiendaId,
+    creado_por: s.creadoPor,
     valor_moto_centavos: s.valorMotoCentavos,
     cuota_inicial_centavos: s.cuotaInicialCentavos,
+    cargos_adicionales_centavos: s.cargosAdicionalesCentavos ?? 0,
     plazo_meses: s.plazoMeses,
     ingresos_declarados_centavos: s.ingresosDeclaradosCentavos,
     estado: s.estado,

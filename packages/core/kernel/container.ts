@@ -21,6 +21,7 @@ export const TOKENS = {
 
   reporteriaService: "modulo.reporteria.service",
   seguridadService: "modulo.seguridad.service",
+  catalogoService: "modulo.catalogo.service",
 } as const;
 
 export type Token = (typeof TOKENS)[keyof typeof TOKENS];
