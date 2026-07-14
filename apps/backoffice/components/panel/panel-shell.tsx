@@ -32,9 +32,12 @@ const enlaceEstiloSuzuki =
 export function PanelShell({
   sesion,
   children,
+  banner,
 }: {
   sesion: Sesion;
   children: React.ReactNode;
+  /** Franja bajo el header (ej. recordatorio de citas del manager). */
+  banner?: React.ReactNode;
 }) {
   const pathname = usePathname();
   const config = ROLES[sesion.rol];
@@ -116,22 +119,21 @@ export function PanelShell({
         </SidebarFooter>
       </Sidebar>
 
-      <SidebarInset>
+      {/* min-w-0: un flex item sin él no puede encogerse por debajo de su
+          min-content y el contenido ancho (tablas, marquee) crea scroll
+          horizontal en TODA la página en viewports angostos */}
+      <SidebarInset className="min-w-0">
         <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-border bg-background/80 px-4 py-3 backdrop-blur md:px-6">
           <SidebarTrigger />
-          {sesion.rol === "vendedor" ? (
-            <InputBusqueda
-              param="q"
-              ruta="/buscar"
-              placeholder="Buscar cliente por nombre o cédula…"
-              className="ml-auto w-full max-w-xs"
-            />
-          ) : (
-            <span className="ml-auto text-sm text-muted-foreground">
-              {sesion.tiendaId ? "Tienda asignada" : "Alcance nacional"}
-            </span>
-          )}
+          <InputBusqueda
+            param="q"
+            ruta="/buscar"
+            placeholder="Buscar cliente por nombre o cédula…"
+            className="ml-auto w-full max-w-xs"
+          />
         </header>
+
+        {banner}
 
         <main className="flex-1 px-4 py-6 md:px-6 lg:px-8">{children}</main>
       </SidebarInset>

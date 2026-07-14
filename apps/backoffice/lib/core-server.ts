@@ -7,6 +7,7 @@ import {
   arrancarNucleo,
   resolver,
   TOKENS,
+  type AgendaService,
   type CarteraService,
   type CatalogoService,
   type ClientesService,
@@ -39,3 +40,5 @@ export const seguridadService = () =>
   resolver<SeguridadService>(TOKENS.seguridadService);
 export const catalogoService = () =>
   resolver<CatalogoService>(TOKENS.catalogoService);
+export const agendaService = () =>
+  resolver<AgendaService>(TOKENS.agendaService);

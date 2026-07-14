@@ -36,3 +36,11 @@ export function edadDesde(fechaNacimientoIso: string, hoy: Date = new Date()): n
   if (aunNoCumple) edad -= 1;
   return edad;
 }
+
+/** Día siguiente de una fecha ISO (yyyy-mm-dd) — para rangos "hasta" inclusivos. */
+export function diaSiguiente(fechaIso: string): string {
+  const d = new Date(`${fechaIso}T00:00:00`);
+  d.setDate(d.getDate() + 1);
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  return `${d.getFullYear()}-${m}-${String(d.getDate()).padStart(2, "0")}`;
+}

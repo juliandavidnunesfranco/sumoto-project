@@ -10,6 +10,7 @@ import { moduloContabilidad } from "./modules/contabilidad/index";
 import { moduloReporteria } from "./modules/reporteria/index";
 import { moduloSeguridad } from "./modules/seguridad/index";
 import { moduloCatalogo } from "./modules/catalogo/index";
+import { moduloAgenda } from "./modules/agenda/index";
 
 let arrancado = false;
 
@@ -30,6 +31,7 @@ export function arrancarNucleo(deps: { supabase: object }): void {
     moduloReporteria,
     moduloSeguridad,
     moduloCatalogo,
+    moduloAgenda,
   ]);
   arrancado = true;
 }

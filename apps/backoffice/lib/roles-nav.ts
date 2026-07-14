@@ -4,6 +4,8 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Calculator,
+  CalendarDays,
+  CalendarCheck,
   ClipboardList,
   FilePlus2,
   LayoutDashboard,
@@ -34,8 +36,11 @@ export const ROLES: Record<Rol, RolConfig> = {
     label: "Manager de tienda",
     descripcion: "Supervisa la colocación y el equipo de vendedores.",
     nav: [
+      { label: "Hoy", href: "/hoy", icon: CalendarCheck },
       { label: "Resumen de tienda", href: "/tienda", icon: Store },
+      { label: "Calendario", href: "/calendario", icon: CalendarDays },
       { label: "Nueva solicitud", href: "/solicitudes/nueva", icon: FilePlus2 },
+      { label: "Buscar cliente", href: "/buscar", icon: UserSearch },
     ],
   },
   financiero: {
@@ -44,16 +49,23 @@ export const ROLES: Record<Rol, RolConfig> = {
     nav: [
       { label: "Cartera y riesgo", href: "/cartera", icon: Wallet },
       { label: "Políticas de crédito", href: "/politicas", icon: ScrollText },
+      { label: "Buscar cliente", href: "/buscar", icon: UserSearch },
     ],
   },
   contable: {
     label: "Contable",
     descripcion: "Concilia recaudos, intereses y asientos contables.",
-    nav: [{ label: "Contabilidad", href: "/contabilidad", icon: Calculator }],
+    nav: [
+      { label: "Contabilidad", href: "/contabilidad", icon: Calculator },
+      { label: "Buscar cliente", href: "/buscar", icon: UserSearch },
+    ],
   },
   ceo: {
     label: "CEO",
     descripcion: "Vista ejecutiva general del negocio.",
-    nav: [{ label: "Vista general", href: "/ceo", icon: LayoutDashboard }],
+    nav: [
+      { label: "Vista general", href: "/ceo", icon: LayoutDashboard },
+      { label: "Buscar cliente", href: "/buscar", icon: UserSearch },
+    ],
   },
 };

@@ -47,11 +47,30 @@ export interface SolicitudReciente {
   cliente_telefono: string | null;
   plazo_meses: number;
   creado_por: string;
+  moto_nombre: string | null;
+  vendedor_nombre: string | null;
+  solicitud_corta: string;
 }
 
 export interface PaginaSolicitudes {
   items: SolicitudReciente[];
   total: number;
+}
+
+export interface DesempenoVendedor {
+  tienda_id: string;
+  creado_por: string;
+  vendedor_nombre: string;
+  solicitudes: number;
+  aprobadas: number;
+  colocacion_centavos: number;
+}
+
+export interface ColocacionDia {
+  tienda_id: string;
+  fecha: string;
+  creditos: number;
+  monto_centavos: number;
 }
 
 export interface AsientoReciente {
@@ -128,11 +147,21 @@ export class ReporteriaService {
     return data ?? [];
   }
 
-  // "Mis solicitudes" paginada: el vendedor acota por creadoPor, el manager
-  // por tiendaId — mismo criterio de alcance que la RLS de lectura.
+  // Solicitudes paginadas: el vendedor acota por creadoPor, el manager por
+  // tiendaId (mismo criterio que la RLS de lectura); clienteCedula filtra
+  // los "casos" de un cliente concreto (vista /clientes/[cedula]); query
+  // busca por nombre/cédula y decision filtra por resultado del motor.
   async solicitudesPaginadas(opciones: {
     tiendaId?: string;
     creadoPor?: string;
+    clienteCedula?: string;
+    query?: string;
+    decision?: string;
+    estado?: string;
+    moto?: string;
+    /** Rango sobre creado_en (ISO yyyy-mm-dd). */
+    desdeFecha?: string;
+    hastaFecha?: string;
     pagina: number;
     porPagina: number;
   }): Promise<PaginaSolicitudes> {
@@ -147,12 +176,66 @@ export class ReporteriaService {
       .order("creado_en", { ascending: false });
     if (opciones.tiendaId) consulta = consulta.eq("tienda_id", opciones.tiendaId);
     if (opciones.creadoPor) consulta = consulta.eq("creado_por", opciones.creadoPor);
+    if (opciones.clienteCedula) consulta = consulta.eq("cliente_cedula", opciones.clienteCedula);
+    // búsqueda multi-columna: cliente, cédula, moto, vendedor e id corto
+    // ("#a1b2c3d4"); saneo de metacaracteres del filtro PostgREST antes de
+    // interpolar en .or() — misma regla anti-inyección que en clientes
+    const query = opciones.query?.trim().replace(/^#/, "").replace(/[,()*\\."']/g, "");
+    if (query) {
+      consulta = consulta.or(
+        [
+          `cliente_nombre.ilike.%${query}%`,
+          `cliente_cedula.ilike.%${query}%`,
+          `moto_nombre.ilike.%${query}%`,
+          `vendedor_nombre.ilike.%${query}%`,
+          `solicitud_corta.ilike.%${query}%`,
+        ].join(","),
+      );
+    }
+    if (opciones.decision) consulta = consulta.eq("decision_resultado", opciones.decision);
+    if (opciones.estado) consulta = consulta.eq("estado", opciones.estado);
+    if (opciones.moto) consulta = consulta.eq("moto_nombre", opciones.moto);
+    if (opciones.desdeFecha) consulta = consulta.gte("creado_en", opciones.desdeFecha);
+    if (opciones.hastaFecha) consulta = consulta.lt("creado_en", opciones.hastaFecha);
 
     const { data, error, count } = await consulta
       .range(desde, desde + porPagina - 1)
       .returns<SolicitudReciente[]>();
     if (error) throw new Error(`[reporteria] error paginando solicitudes: ${error.message}`);
     return { items: data ?? [], total: count ?? 0 };
+  }
+
+  // Desempeño del equipo de una tienda (tabla del manager, estilo v0).
+  async desempenoVendedores(tiendaId: string): Promise<DesempenoVendedor[]> {
+    const { data, error } = await this.supabase
+      .schema("reporteria")
+      .from("desempeno_vendedores")
+      .select()
+      .eq("tienda_id", tiendaId)
+      .order("colocacion_centavos", { ascending: false })
+      .returns<DesempenoVendedor[]>();
+    if (error) throw new Error(`[reporteria] error leyendo desempeño: ${error.message}`);
+    return data ?? [];
+  }
+
+  // Serie diaria de colocación de una tienda (seguimiento del manager:
+  // el gráfico mensual y el calendario agregan encima de esta serie).
+  async colocacionDiaria(
+    tiendaId: string,
+    desdeIso?: string,
+    hastaIso?: string,
+  ): Promise<ColocacionDia[]> {
+    let consulta = this.supabase
+      .schema("reporteria")
+      .from("colocacion_diaria")
+      .select()
+      .eq("tienda_id", tiendaId)
+      .order("fecha");
+    if (desdeIso) consulta = consulta.gte("fecha", desdeIso);
+    if (hastaIso) consulta = consulta.lt("fecha", hastaIso);
+    const { data, error } = await consulta.returns<ColocacionDia[]>();
+    if (error) throw new Error(`[reporteria] error leyendo colocación: ${error.message}`);
+    return data ?? [];
   }
 
   async asientosRecientes(limite = 20): Promise<AsientoReciente[]> {

@@ -663,4 +663,103 @@ En su lugar:
   Verificado en navegador: sidebar con 3 ítems, 9 filas propias de
   Valentina, evaluación nueva aparece de primera como "Evaluada" (10
   solicitudes), 103/103 tests, typecheck limpio.
+- 2026-07-14: `.playwright-mcp/` (artefactos de verificación en navegador)
+  entró por accidente en un `git add .` — revertido, directorio eliminado y
+  agregado a `.gitignore`. Commit `3ccd3fc` empuja todo el trabajo del
+  módulo catalogo + buscadores + mis solicitudes + trazabilidad.
+- 2026-07-14: tabla de solicitudes extraída a componente compartido
+  (`components/shared/tabla-solicitudes.tsx`) — la usan "Mis solicitudes"
+  (vendedor) y "Resumen de tienda" (manager, paginada por tienda con
+  `solicitudesPaginadas`). El manager gana la acción **Reasignar vendedor**
+  (ícono UserCog) — por ahora VISUAL (botón deshabilitado, title
+  "próximamente"): el flujo real (¿a quién?, ¿evento?, ¿workflow?) queda por
+  diseñar con Julián. KPI "Solicitudes" del manager ahora usa el total real
+  del count paginado.
+- 2026-07-14: búsqueda de clientes extendida a TODOS los roles — el input
+  del header ahora es universal (PanelShell sin condicional de rol) y los 5
+  sidebars ganan "Buscar cliente". Nuevo route group `(compartido)` (layout
+  con `exigirRol` de los 5 roles + PanelShell): ahí viven `/buscar` (movida
+  desde (vendedor)) y la NUEVA `/clientes/[cedula]` — la "tabla de casos"
+  del cliente. Decisión de UX de Julián: el resultado de la búsqueda abre
+  los CASOS del cliente, no el wizard (el wizard se alcanza desde la acción
+  "ojo" de cada caso, solo para vendedor/manager). Alcance de datos por rol:
+  vendedor/manager solo su tienda (URL ajena = "Cliente no encontrado");
+  financiero/contable/ceo nacional. `TablaSolicitudes` gana prop `conWizard`
+  (la acción y el CTA de tabla vacía se ocultan a roles sin acceso);
+  `solicitudesPaginadas` gana filtro `clienteCedula`. proxy.ts gatea
+  `/buscar` y `/clientes` para los 5 roles. Verificado en navegador: CEO
+  busca nacional y ve casos SIN wizard; vendedora ve su cliente CON wizard
+  y el de otra tienda bloqueado. 103/103 tests, typecheck limpio.
+- 2026-07-14: rol MANAGER completado según el prototipo v0, con datos REALES
+  (decisión de Julián: funcional, no cosmético):
+  (1) Nuevas vistas reporteria (migración `20260714134256`):
+  `desempeno_vendedores` (solicitudes/aprobadas por `creado_por` +
+  colocación real vía links→creditos), `colocacion_diaria` por tienda, y
+  `solicitudes_recientes` gana `moto_nombre`/`vendedor_nombre` (joins
+  cross-schema: permitidos en vistas de reporteria).
+  (2) `/tienda` estilo v0: KPIs (colocación último año, tasa de aprobación),
+  gráfico `ColumnasMensuales` de colocación 12 meses, tabla de desempeño
+  por vendedor, y tabla de solicitudes con formato v0 (ID corto de la
+  solicitud + Moto + Vendedor — con el ID cada caso es distinguible aunque
+  el cliente se repita; el agrupado por persona vive en /clientes/[cedula])
+  con búsqueda por cliente/cédula (`solQuery`, mismo saneo anti-inyección
+  de filtros PostgREST) y filtro por decisión (`FiltroDecision`).
+  (3) NUEVO MÓDULO `agenda` (decisión con Julián: real, no mock en la app):
+  schema `agenda.citas` (FKs a public.tiendas/perfiles, `cliente_cedula`
+  como referencia suave, RLS por tienda, grants explícitos), dominio puro
+  con `crearCita` validado (5 tests → suite 108/108), fachada
+  `AgendaService` (crearCita/citasEntre/citasProximas), registrado en
+  kernel y bootstrap. Aprendizaje de infraestructura: agregar un schema a
+  config.toml ANTES de que exista su migración deja a PostgREST sin
+  arrancar (error 3F000 en el health-check) — hay que arrancar sin el
+  schema, correr `db reset`, y recién ahí exponerlo + stop/start.
+  (4) `/calendario` del manager: grid mensual SSR con colocación real por
+  día (chips), totales por semana y KPI del mes (desempeño por día/semana/
+  mes en una sola vista), citas de agenda en cada celda, navegación entre
+  meses por searchParams y formulario "Nueva cita" (server action →
+  fachada; tienda/creador SIEMPRE de la sesión). Verificado: cita creada
+  desde la UI aparece en el grid; dic-2025 cuadra al peso ($17,3M = 9,9 +
+  7,4 de sus chips diarios).
+  (5) Banner recordatorio de citas (48 h) en TODOS los apartados del
+  manager: server component `BannerCitas` inyectado vía prop `banner` de
+  PanelShell desde el layout (manager); marquee CSS puro (keyframes
+  `marquee-citas` añadidos al FINAL de globals.css sin tocar el tema, con
+  pausa en hover y respeto de prefers-reduced-motion). Seed de 6 citas con
+  fechas relativas a `current_date` (+5h por el offset UTC→Bogotá) para que
+  banner y calendario siempre tengan datos en demo.
+- 2026-07-14: FIX del scroll horizontal reportado por Julián en el panel del
+  manager — DOS causas encadenadas, ambas de flexbox min-content: (1) el
+  marquee del banner (`w-max`) propagaba su ancho intrínseco; ahora va
+  `position: absolute` dentro de su wrapper (fuera del flujo = cero
+  min-content garantizado); (2) el `SidebarInset` de shadcn es un flex item
+  SIN `min-w-0`: no podía encogerse por debajo del min-content de su
+  contenido y empujaba la página entera en viewports ≤1366px — `min-w-0`
+  agregado en PanelShell. REGLA aprendida: todo flex item que contenga
+  scroll containers o contenido ancho necesita `min-w-0` explícito.
+  Verificado a 1280px en /tienda, /calendario, /hoy y el wizard: cero
+  desborde.
+- 2026-07-14: FIX del banner que no mostraba la cita creada por Julián —
+  DOS causas: (1) la action guardaba la hora local "a secas" y Postgres la
+  interpretaba como UTC (cita corrida 5 horas); ahora se convierte con
+  `new Date(...).toISOString()` y las citas ya guardadas se corrigieron
+  (+5h); (2) el banner recortaba a 48 horas y la cita ("Lanzamiento Moto
+  nueva", a 3 días) quedaba fuera — ahora muestra las próximas 6 citas SIN
+  ventana y con el día visible ("vie 17, 09:00 a. m.").
+- 2026-07-14: sistema de filtros por columna en TODAS las tablas de
+  solicitudes (pedido de Julián): componente compartido
+  `FiltrosSolicitudes` (decisión, estado, moto, vendedor —solo manager—,
+  rango de fechas desde/hasta y botón limpiar; todo narra searchParams) +
+  búsqueda multi-columna: `solicitudesPaginadas` ahora busca en
+  cliente_nombre, cliente_cedula, moto_nombre, vendedor_nombre y
+  solicitud_corta (nueva columna `left(id::text,8)` en la vista, migración
+  `20260714144101` — uuid no admite ilike), con el mismo saneo
+  anti-inyección de filtros PostgREST. Aplicado en /tienda (con vendedor),
+  /solicitudes del vendedor y /clientes/[cedula]. Las opciones de los
+  selects son REALES (motos del catálogo, vendedores del desempeño) y
+  llegan por props desde el server component.
+- 2026-07-14: nueva vista "Hoy" del manager (`/hoy`, primer ítem del
+  sidebar, propuesta por Julián): el día de la tienda en una pantalla —
+  KPIs (solicitudes/aprobadas/colocación/citas de hoy), agenda del día con
+  hora y link a los casos del cliente, y tabla de solicitudes creadas hoy.
+  Los límites del día son LOCALES convertidos a instantes UTC.
 - (agregar nuevas decisiones aquí con fecha)

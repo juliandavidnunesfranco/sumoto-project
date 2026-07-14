@@ -4,6 +4,8 @@ export {
   ReporteriaService,
   type AsientoReciente,
   type CarteraPorTienda,
+  type ColocacionDia,
+  type DesempenoVendedor,
   type MoraPorFranja,
   type PaginaSolicitudes,
   type RecaudoMensual,

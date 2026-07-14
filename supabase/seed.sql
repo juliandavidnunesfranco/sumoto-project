@@ -207,3 +207,25 @@ begin
     end loop;
   end loop;
 end $$;
+
+-- 6. Citas de agenda del manager (módulo agenda) — fechas RELATIVAS a hoy
+--    para que el banner ("próximas 48h") y el calendario siempre tengan datos.
+insert into agenda.citas (tienda_id, creado_por, titulo, tipo, cliente_cedula, fecha_hora, notas) values
+  ('11111111-1111-4111-8111-111111111111', 'a0000000-0000-4000-8000-000000000002',
+   'Visita de Diana Ramírez — entrega de documentos', 'visita', '1000000008',
+   current_date + interval '15 hours', 'Trae pagaré firmado'),
+  ('11111111-1111-4111-8111-111111111111', 'a0000000-0000-4000-8000-000000000002',
+   'Reunión semanal de vendedores', 'reunion', null,
+   current_date + interval '1 day 13 hours', 'Revisión de metas de colocación'),
+  ('11111111-1111-4111-8111-111111111111', 'a0000000-0000-4000-8000-000000000002',
+   'Visita de María Gómez — prueba de manejo Sport 250', 'visita', '1000000002',
+   current_date + interval '1 day 20 hours', null),
+  ('11111111-1111-4111-8111-111111111111', 'a0000000-0000-4000-8000-000000000002',
+   'Llamada con financiero — política de cuota inicial', 'reunion', null,
+   current_date + interval '4 days 14 hours', null),
+  ('11111111-1111-4111-8111-111111111111', 'a0000000-0000-4000-8000-000000000002',
+   'Visita de Laura Castro — segunda moto', 'visita', '1000000010',
+   current_date + interval '8 days 16 hours', null),
+  ('11111111-1111-4111-8111-111111111111', 'a0000000-0000-4000-8000-000000000002',
+   'Inventario de motos con bodega', 'reunion', null,
+   current_date + interval '12 days 21 hours', null);

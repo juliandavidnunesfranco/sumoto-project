@@ -126,3 +126,28 @@ body {
     @apply font-sans;
   }
 }
+
+/* Marquee del banner de citas del manager: loop continuo (el contenido va
+   duplicado en el DOM, la animación desplaza exactamente la mitad). */
+@keyframes marquee-citas {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.animar-marquee {
+  animation: marquee-citas 25s linear infinite;
+}
+
+.animar-marquee:hover {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animar-marquee {
+    animation: none;
+  }
+}
