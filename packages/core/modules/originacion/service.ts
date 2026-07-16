@@ -16,9 +16,25 @@ import type {
 } from "./domain/credit-product";
 import type { Decision } from "./domain/decision";
 import type { MotorDecision } from "./domain/decision-engine";
+import {
+  montoAFinanciarCentavos,
+  type EstadoSolicitud,
+} from "./domain/loan-application";
 import type { RepositorioProductos, RepositorioSolicitudes } from "./domain/repositories";
 import type { ConsultorRiesgo } from "./domain/risk-advisor";
 import type { ReporteRiesgo } from "./domain/risk-report";
+
+// DTO plano para el desembolso (lo consume cartera vía container, regla 3).
+export interface SolicitudParaDesembolso {
+  solicitudId: string;
+  clienteId: string;
+  tiendaId: string;
+  plazoMeses: number;
+  montoAFinanciarCentavos: number;
+  tasaEA: number;
+  aprobada: boolean;
+  estado: EstadoSolicitud;
+}
 
 export interface ComandoSimularDecision {
   cedula: string;
@@ -72,6 +88,27 @@ export class OriginacionService {
   // el score justo después de escanear la cédula, antes de armar el crédito.
   consultarRiesgo(cedula: string): Promise<Resultado<ReporteRiesgo, string>> {
     return this.consultorRiesgo.consultar(cedula);
+  }
+
+  // Todo lo que cartera necesita para desembolsar, en un DTO plano: el monto
+  // a financiar se calcula AQUÍ (regla de este dominio) y la tasa sale del
+  // producto con el que se evaluó. Cartera lo consume vía container (regla 3).
+  async paraDesembolso(solicitudId: string): Promise<SolicitudParaDesembolso | null> {
+    const par = await this.solicitudEvaluada(solicitudId);
+    if (!par) return null;
+    const producto = await this.productos.buscarPorId(par.solicitud.productoId);
+    if (!producto) return null;
+
+    return {
+      solicitudId,
+      clienteId: par.solicitud.clienteId,
+      tiendaId: par.solicitud.tiendaId,
+      plazoMeses: par.solicitud.plazoMeses,
+      montoAFinanciarCentavos: montoAFinanciarCentavos(par.solicitud),
+      tasaEA: producto.tasaEA,
+      aprobada: par.decision.resultado === "APROBADO",
+      estado: par.solicitud.estado,
+    };
   }
 
   async solicitudEvaluada(solicitudId: string) {

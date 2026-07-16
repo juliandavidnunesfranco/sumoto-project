@@ -335,6 +335,37 @@ En su lugar:
   no vive en la app, que es el prerequisito de este diseño.
 
 ## Siguiente (en orden) 📋
+
+### Backlog acordado para la tarde del 2026-07-15 (Julián aceptó TODAS)
+Propuestas mías aceptadas ("me gustan todas"):
+1. Meta de colocación mensual con barra de progreso (requiere campo meta en
+   `public.tiendas` — migración).
+2. Alerta de mora de la tienda en `/hoy` (dato ya existe en reporteria).
+3. Exportar CSV de las tablas respetando los filtros activos.
+
+Ideas nuevas de Julián (mismo mensaje):
+4. ~~**Tabla genérica compartida**~~ ✅ HECHO 2026-07-15: `TablaDatos`
+   (server, genérica para cualquier dato) + `EncabezadoColumna` (client:
+   cada encabezado con su orden y filtro, decisión de Julián — mismo
+   formato en todas las tablas, sin fila de filtros aparte). Ver bitácora.
+5. **Filas de desempeño con color de avance**: en desempeño de tienda y por
+   asesor, cada fila con background de color mostrando su avance de
+   colocación (estilo barra de progreso embebida en la fila).
+6. ~~**BUG barras del gráfico**~~ ✅ ARREGLADO 2026-07-15: era `height: %`
+   dentro de una cadena flex sin altura definida (items-end desactiva el
+   stretch) — barras ahora en px sobre el área fija. Ver bitácora.
+7. **Seguimiento por asesor**: apartado propio donde el manager compara el
+   desempeño de cada asesor contra su presupuesto de colocación asignado
+   (requiere modelo de presupuesto/meta por vendedor).
+8. **Impulso por moto**: ver qué moto tiene más/menos impulso en
+   financiación para que el manager lo gestione.
+9. **Canal de comunicación entre roles** vía Supabase Realtime/webhook:
+   apartado para crear canales grupales o uno-a-uno.
+
+### Backlog previo (sigue vigente)
+0. ~~Pantalla de desembolso~~ ✅ HECHO 2026-07-15: decisión de Julián — el
+   rol FINANCIERO desembolsa. Sección "Pendientes de desembolso" en
+   /cartera con acción por fila. Ver bitácora.
 1. Módulo `notificaciones` (mañana, 2026-07-14): alcance por definir al
    retomar — candidatos naturales dado lo que ya existe: evento
    `cartera.credito.desembolsado`/`cartera.pago.registrado` disparando un
@@ -762,4 +793,73 @@ En su lugar:
   KPIs (solicitudes/aprobadas/colocación/citas de hoy), agenda del día con
   hora y link a los casos del cliente, y tabla de solicitudes creadas hoy.
   Los límites del día son LOCALES convertidos a instantes UTC.
+- 2026-07-14 (cierre de sesión): Julián aceptó las 3 propuestas (meta de
+  colocación con progreso, alerta de mora en /hoy, export CSV) y sumó 6
+  ideas nuevas: tabla genérica con filtros/búsqueda para cualquier dato,
+  filas de desempeño con background de color de avance, bug visual de las
+  barras de "Colocación mensual", seguimiento por asesor vs presupuesto,
+  impulso de financiación por moto, y canal de comunicación entre roles
+  vía Supabase Realtime. Todo registrado en "Siguiente → Backlog acordado
+  para la tarde del 2026-07-15". Instrucción explícita: no tocar más
+  código en esa sesión. OJO: el trabajo del manager (desde el commit
+  3ccd3fc) sigue SIN commitear al cierre — commit b62ade8 lo recogió
+  después.
+- 2026-07-15 (tarde): FIX de las barras invisibles en "Colocación mensual"
+  (reporte de Julián: valor sobre el mes, sin barra). Causa raíz: el
+  contenedor del gráfico usa `items-end`, que desactiva el stretch de las
+  columnas — cada columna quedaba con altura de contenido y el `height: %`
+  de la barra resolvía contra un padre sin altura definida = 0px, sin error
+  ni warning. Fix mínimo: altura de barra en PX calculada sobre el área
+  fija del gráfico (constante AREA_BARRA en ColumnasMensuales). REGLA: un
+  height porcentual exige que TODA la cadena de padres tenga altura
+  definida; items-end/start la rompe silenciosamente.
+- 2026-07-15 (tarde): DESEMBOLSO desde la UI — decisión de Julián: lo
+  dispara el rol FINANCIERO (como en banca; era el candidato anotado).
+  Diagnóstico previo: la colocación no se movía porque NADA en la app
+  llamaba al workflow `desembolsarCredito` (las solicitudes morían en
+  `evaluada`; los 18 créditos eran todos del seed). Implementación:
+  (1) originacion expone `paraDesembolso(solicitudId)` — DTO plano con
+  cliente/tienda/plazo/monto a financiar (regla de SU dominio) y tasaEA
+  del producto (3 tests);
+  (2) cartera gana el caso de uso `DesembolsarSolicitudAprobada` (4 tests):
+  valida no-existe / no-APROBADA / ya-desembolsada y delega en el workflow
+  existente; la fuente se inyecta como CONTRATO en cartera/domain
+  (FuenteSolicitudesAprobadas, DIP) y module.ts la resuelve por container
+  con provider perezoso — import type-only de originacion/index, runtime
+  siempre por container (regla 3). tasaMoraEA = 0.38 constante demo
+  (TASA_MORA_EA_DEMO; pasará al producto cuando SUMOTO defina política);
+  (3) /cartera (financiero): sección "Pendientes de desembolso" (alcance
+  NACIONAL, decision=APROBADO + estado=evaluada) con acción por fila →
+  server action que solo manda el ID (fecha en zona America/Bogota — jamás
+  toISOString directo, lección de las citas). Suite 115/115.
+  VERIFICADO punta a punta en navegador: pendiente listada → clic
+  Desembolsar → crédito $8M/24 cuotas hoy, solicitud `desembolsada` (el
+  subscriber de originacion oyó el evento), asiento contable generado y
+  despachado al mock World Office (WO-000001), "Créditos activos" 18→19 y
+  la barra de JULIO apareció en colocación mensual del manager ($8,0M).
+- 2026-07-15 (tarde): TABLA GENÉRICA con orden y filtro POR ENCABEZADO
+  (idea de Julián: "que los encabezados tengan filtro y sort para evitar
+  ponerlo en el header de la tabla y así cada tabla tendrá el mismo
+  formato"). Piezas: `TablaDatos` (server component genérico — recibe
+  `ColumnaDatos<T>[]` con render, sirve para solicitudes, clientes o lo que
+  venga) + `EncabezadoColumna` (client, ÚNICO interactivo: menú por columna
+  con Ascendente/Descendente, filtro de opciones o rango de fechas y
+  "Limpiar columna"; solo narra searchParams `orden`/`dir` + params de
+  filtro existentes). `TablaSolicitudes` quedó como configuración de
+  columnas sobre la genérica (mismas acciones por fila). En el core,
+  `solicitudesPaginadas` acepta `orden`/`direccion` con WHITELIST de
+  columnas (el nombre viaja en la URL: jamás se interpola sin validar) y
+  desempate por solicitud_id para paginación estable. `FiltrosSolicitudes`
+  ELIMINADO (reemplazado por los encabezados) en /tienda, /solicitudes y
+  /clientes/[cedula]; /hoy también quedó cableado (orden y filtros narran,
+  el día permanece fijo y sin filtro de fechas: conFiltroFechas={false}).
+  Verificado en navegador: orden por valor asc + filtro Decisión=Aprobadas
+  combinados en la URL, paginación conserva orden/dir, cero scroll
+  horizontal a 1280px.
+- 2026-07-15 (tarde): FIX zona horaria en /hoy — la tabla de solicitudes
+  del día filtraba con fecha PLANA (yyyy-mm-dd) contra `creado_en`
+  timestamptz: una solicitud de las 8 p. m. de Bogotá ya es "mañana" en UTC
+  y desaparecía de "Hoy". Ahora usa los mismos INSTANTES (inicioDia/finDia)
+  que ya calculaba para las citas. Misma familia del bug del banner:
+  timestamps siempre como instantes con zona, nunca fechas a secas.
 - (agregar nuevas decisiones aquí con fecha)

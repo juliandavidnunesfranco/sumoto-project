@@ -10,7 +10,6 @@ import { catalogoService, clientesService, reporteriaService } from "@/lib/core-
 import { diaSiguiente } from "@/lib/format";
 import { PageHeader, Tarjeta } from "@/components/panel/ui";
 import { TablaSolicitudes } from "@/components/shared/tabla-solicitudes";
-import { FiltrosSolicitudes } from "@/components/shared/filtros-solicitudes";
 import { SelectorPorPagina } from "@/components/shared/selector-por-pagina";
 import { Paginacion } from "@/components/shared/paginacion";
 
@@ -31,6 +30,8 @@ export default async function CasosDelCliente({
     moto?: string;
     desde?: string;
     hasta?: string;
+    orden?: string;
+    dir?: string;
   }>;
 }) {
   const { cedula } = await params;
@@ -61,6 +62,8 @@ export default async function CasosDelCliente({
           moto: sp.moto,
           desdeFecha: sp.desde,
           hastaFecha: sp.hasta ? diaSiguiente(sp.hasta) : undefined,
+          orden: sp.orden,
+          direccion: sp.dir === "asc" ? "asc" : "desc",
           pagina,
           porPagina,
         }),
@@ -70,7 +73,7 @@ export default async function CasosDelCliente({
 
   function hrefPagina(destino: number): string {
     const qs = new URLSearchParams();
-    for (const clave of ["decision", "estado", "moto", "desde", "hasta"] as const) {
+    for (const clave of ["decision", "estado", "moto", "desde", "hasta", "orden", "dir"] as const) {
       if (sp[clave]) qs.set(clave, sp[clave]!);
     }
     qs.set("porPagina", String(porPagina));
@@ -84,7 +87,7 @@ export default async function CasosDelCliente({
     <div>
       <Link
         href="/buscar"
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors duration-150 hover:text-foreground"
+        className="mb-4 border border-transparent  inline-flex items-center gap-1.5 font-headline text-sm text-black transition-colors duration-150 hover:text-muted-foreground hover:border-black p-1.5"
       >
         <ArrowLeft className="size-4" />
         Volver a la búsqueda
@@ -106,13 +109,13 @@ export default async function CasosDelCliente({
           <Tarjeta className="overflow-x-auto">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="font-semibold font-headline text-3xl">Casos del cliente</h2>
-              <FiltrosSolicitudes motos={catalogoMotos.items.map((m) => m.nombre)} />
             </div>
             <div className="mt-4">
               <TablaSolicitudes
                 solicitudes={solicitudes}
                 conWizard={conWizard}
                 conReasignar={sesion?.rol === "manager"}
+                motos={catalogoMotos.items.map((m) => m.nombre)}
               />
             </div>
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">

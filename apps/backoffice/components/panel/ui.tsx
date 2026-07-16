@@ -112,17 +112,19 @@ export function ColumnasMensuales({
   formato: (v: number) => string;
 }) {
   const max = Math.max(...datos.map((d) => d.valor), 1);
+  // altura de barra en PX, no %: con items-end las columnas no se estiran y
+  // un height % dentro de un padre sin altura definida colapsa a 0 (barras
+  // invisibles). 132px = 180 del gráfico menos etiquetas (valor + mes) y gaps.
+  const AREA_BARRA = 132;
   return (
     <div className="flex items-end justify-between gap-2" style={{ height: 180 }}>
       {datos.map((d) => (
         <div key={d.etiqueta} className="flex flex-1 flex-col items-center gap-2">
           <span className="text-[10px] tabular-nums text-muted-foreground">{formato(d.valor)}</span>
-          <div className="flex w-full flex-1 items-end">
-            <div
-              className="w-full rounded-t bg-primary/80"
-              style={{ height: `${Math.round((d.valor / max) * 100)}%` }}
-            />
-          </div>
+          <div
+            className="w-full rounded-t bg-primary/80"
+            style={{ height: Math.round((d.valor / max) * AREA_BARRA) }}
+          />
           <span className="text-xs text-muted-foreground">{d.etiqueta}</span>
         </div>
       ))}

@@ -10,6 +10,7 @@ import { UserSearch } from "lucide-react";
 import { obtenerSesion } from "@/lib/auth";
 import { clientesService } from "@/lib/core-server";
 import { PageHeader, Tarjeta } from "@/components/panel/ui";
+import { InputBusqueda } from "@/components/shared/input-busqueda";
 
 export const dynamic = "force-dynamic";
 
@@ -40,14 +41,26 @@ export default async function BuscarClientes({
     <div className="mx-auto max-w-3xl">
       <PageHeader
         titulo="Buscar cliente"
-        descripcion="Escribe en el buscador del encabezado: nombre, apellido o cédula."
+        descripcion="Escribe en el buscador: nombre, apellido o cédula."
       />
+
+      <div className="p-4">
+        <InputBusqueda
+          param="q"          
+          placeholder="Buscar por nombre, cedula"
+          className="w-full max-w-3xl"
+          />
+      </div>
 
       <Tarjeta className="mt-2">
         {termino.length < 2 ? (
+          
           <p className="py-8 text-center text-sm text-muted-foreground">
             Escribe al menos 2 caracteres para buscar.
           </p>
+          
+          
+
         ) : clientes.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">
             Sin resultados para «{termino}».

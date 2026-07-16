@@ -23,7 +23,19 @@ function claveDia(fecha: Date): string {
   return `${fecha.getFullYear()}-${m}-${String(fecha.getDate()).padStart(2, "0")}`;
 }
 
-export default async function HoyPage() {
+export default async function HoyPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    orden?: string;
+    dir?: string;
+    decision?: string;
+    estado?: string;
+    moto?: string;
+    vendedor?: string;
+  }>;
+}) {
+  const params = await searchParams;
   const sesion = await obtenerSesion();
   const hoy = new Date();
   const hoyIso = claveDia(hoy);
@@ -38,8 +50,18 @@ export default async function HoyPage() {
         reporteriaService().colocacionDiaria(sesion.tiendaId, hoyIso, mananaIso),
         reporteriaService().solicitudesPaginadas({
           tiendaId: sesion.tiendaId,
-          desdeFecha: hoyIso,
-          hastaFecha: mananaIso,
+          // el período es fijo (HOY): los encabezados solo narran orden y
+          // filtros de columna, jamás mueven el día. Límites como INSTANTES
+          // (no fecha plana): creado_en es timestamptz y una solicitud de las
+          // 8 p. m. ya cae en "mañana" UTC — se perdía de la tabla.
+          desdeFecha: inicioDia,
+          hastaFecha: finDia,
+          decision: params.decision,
+          estado: params.estado,
+          moto: params.moto,
+          creadoPor: params.vendedor,
+          orden: params.orden,
+          direccion: params.dir === "asc" ? "asc" : "desc",
           pagina: 1,
           porPagina: 20,
         }),
@@ -118,7 +140,7 @@ export default async function HoyPage() {
         <Tarjeta className="overflow-x-auto">
           <h2 className="font-semibold font-headline text-3xl">Solicitudes de hoy</h2>
           <div className="mt-4">
-            <TablaSolicitudes solicitudes={solicitudes} conReasignar conVendedor />
+            <TablaSolicitudes solicitudes={solicitudes} conReasignar conVendedor conFiltroFechas={false} />
           </div>
         </Tarjeta>
       </div>

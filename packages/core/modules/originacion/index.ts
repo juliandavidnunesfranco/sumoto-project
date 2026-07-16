@@ -35,5 +35,6 @@ export {
 export {
   OriginacionService,
   type ComandoSimularDecision,
+  type SolicitudParaDesembolso,
 } from "./service";
 export { moduloOriginacion } from "./module";

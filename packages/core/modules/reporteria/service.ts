@@ -83,6 +83,29 @@ export interface AsientoReciente {
   total_credito_centavos: number;
 }
 
+// Columnas de la vista solicitudes_recientes por las que se puede ordenar
+// desde la UI (el nombre viaja en la URL: whitelist obligatoria).
+const COLUMNAS_ORDENABLES = new Set([
+  "creado_en",
+  "cliente_nombre",
+  "moto_nombre",
+  "vendedor_nombre",
+  "valor_moto_centavos",
+  "cuota_estimada_centavos",
+  "decision_resultado",
+  "estado",
+]);
+
+// Whitelist de orden para la vista asientos_recientes (tabla del contable).
+const COLUMNAS_ASIENTOS = new Set([
+  "fecha",
+  "descripcion",
+  "evento_origen",
+  "despacho",
+  "total_debito_centavos",
+  "total_credito_centavos",
+]);
+
 export class ReporteriaService {
   constructor(private readonly supabase: SupabaseClient) {}
 
@@ -162,6 +185,9 @@ export class ReporteriaService {
     /** Rango sobre creado_en (ISO yyyy-mm-dd). */
     desdeFecha?: string;
     hastaFecha?: string;
+    /** Columna de orden: SOLO nombres de la whitelist (viene de la URL). */
+    orden?: string;
+    direccion?: "asc" | "desc";
     pagina: number;
     porPagina: number;
   }): Promise<PaginaSolicitudes> {
@@ -169,11 +195,20 @@ export class ReporteriaService {
     const porPagina = Math.max(1, opciones.porPagina);
     const desde = (pagina - 1) * porPagina;
 
+    // whitelist de orden: el nombre llega de searchParams — jamás se
+    // interpola sin validar contra columnas conocidas de la vista
+    const ordenValido =
+      opciones.orden !== undefined && COLUMNAS_ORDENABLES.has(opciones.orden);
+    const orden = ordenValido ? opciones.orden! : "creado_en";
+    const ascendente = ordenValido && opciones.direccion === "asc";
+
     let consulta = this.supabase
       .schema("reporteria")
       .from("solicitudes_recientes")
       .select("*", { count: "exact" })
-      .order("creado_en", { ascending: false });
+      .order(orden, { ascending: ascendente })
+      // desempate estable para que la paginación no baile entre páginas
+      .order("solicitud_id", { ascending: true });
     if (opciones.tiendaId) consulta = consulta.eq("tienda_id", opciones.tiendaId);
     if (opciones.creadoPor) consulta = consulta.eq("creado_por", opciones.creadoPor);
     if (opciones.clienteCedula) consulta = consulta.eq("cliente_cedula", opciones.clienteCedula);
@@ -238,13 +273,36 @@ export class ReporteriaService {
     return data ?? [];
   }
 
-  async asientosRecientes(limite = 20): Promise<AsientoReciente[]> {
-    const { data, error } = await this.supabase
+  // Asientos con filtros y orden por columna (tabla del contable). Mismo
+  // patrón que solicitudesPaginadas: whitelist para el orden, filtros por
+  // igualdad y rango de fechas sobre `fecha` (date, no timestamptz).
+  async asientosRecientes(opciones?: {
+    eventoOrigen?: string;
+    despacho?: string;
+    desdeFecha?: string;
+    hastaFecha?: string;
+    orden?: string;
+    direccion?: "asc" | "desc";
+    limite?: number;
+  }): Promise<AsientoReciente[]> {
+    const ordenValido =
+      opciones?.orden !== undefined && COLUMNAS_ASIENTOS.has(opciones.orden);
+    const orden = ordenValido ? opciones!.orden! : "fecha";
+    const ascendente = ordenValido && opciones?.direccion === "asc";
+
+    let consulta = this.supabase
       .schema("reporteria")
       .from("asientos_recientes")
       .select()
-      .limit(limite)
-      .returns<AsientoReciente[]>();
+      .order(orden, { ascending: ascendente })
+      .order("asiento_id", { ascending: true })
+      .limit(opciones?.limite ?? 20);
+    if (opciones?.eventoOrigen) consulta = consulta.eq("evento_origen", opciones.eventoOrigen);
+    if (opciones?.despacho) consulta = consulta.eq("despacho", opciones.despacho);
+    if (opciones?.desdeFecha) consulta = consulta.gte("fecha", opciones.desdeFecha);
+    if (opciones?.hastaFecha) consulta = consulta.lte("fecha", opciones.hastaFecha);
+
+    const { data, error } = await consulta.returns<AsientoReciente[]>();
     if (error) throw new Error(`[reporteria] error leyendo asientos: ${error.message}`);
     return data ?? [];
   }

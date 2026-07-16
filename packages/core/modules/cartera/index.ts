@@ -27,6 +27,13 @@ export {
   type CreditoDesembolsado,
 } from "./application/disburse-credit";
 export {
+  DesembolsarSolicitudAprobada,
+  type ComandoDesembolsarSolicitud,
+} from "./application/disburse-approved-application";
+// el DTO SolicitudParaDesembolso público es el de originación (dueño del
+// dato); este contrato es la vista local de cartera sobre esa forma.
+export type { FuenteSolicitudesAprobadas } from "./domain/approved-application-source";
+export {
   RegistrarPago,
   type ComandoRegistrarPago,
   type PagoRegistrado,

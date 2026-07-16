@@ -9,7 +9,6 @@ import { diaSiguiente } from "@/lib/format";
 import { PageHeader, Tarjeta } from "@/components/panel/ui";
 import { TablaSolicitudes } from "@/components/shared/tabla-solicitudes";
 import { InputBusqueda } from "@/components/shared/input-busqueda";
-import { FiltrosSolicitudes } from "@/components/shared/filtros-solicitudes";
 import { SelectorPorPagina } from "@/components/shared/selector-por-pagina";
 import { Paginacion } from "@/components/shared/paginacion";
 
@@ -27,6 +26,8 @@ export default async function MisSolicitudes({
     moto?: string;
     desde?: string;
     hasta?: string;
+    orden?: string;
+    dir?: string;
   }>;
 }) {
   const params = await searchParams;
@@ -51,6 +52,8 @@ export default async function MisSolicitudes({
           moto: params.moto,
           desdeFecha: params.desde,
           hastaFecha: params.hasta ? diaSiguiente(params.hasta) : undefined,
+          orden: params.orden,
+          direccion: params.dir === "asc" ? "asc" : "desc",
           pagina,
           porPagina,
         }),
@@ -60,7 +63,7 @@ export default async function MisSolicitudes({
 
   function hrefPagina(destino: number): string {
     const qs = new URLSearchParams();
-    for (const clave of ["solQuery", "decision", "estado", "moto", "desde", "hasta"] as const) {
+    for (const clave of ["solQuery", "decision", "estado", "moto", "desde", "hasta", "orden", "dir"] as const) {
       if (params[clave]) qs.set(clave, params[clave]!);
     }
     qs.set("porPagina", String(porPagina));
@@ -87,10 +90,12 @@ export default async function MisSolicitudes({
             limpiarParams={["pagina"]}
             className="w-64 sm:w-80"
           />
-          <FiltrosSolicitudes motos={catalogoMotos.items.map((m) => m.nombre)} />
         </div>
         <div className="mt-4">
-          <TablaSolicitudes solicitudes={solicitudes} />
+          <TablaSolicitudes
+            solicitudes={solicitudes}
+            motos={catalogoMotos.items.map((m) => m.nombre)}
+          />
         </div>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
           <SelectorPorPagina param="porPagina" resetParam="pagina" />

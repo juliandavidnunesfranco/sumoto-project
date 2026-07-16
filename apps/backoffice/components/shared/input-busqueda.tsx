@@ -69,17 +69,17 @@ export function InputBusqueda({
   return (
     <div
       className={cn(
-        "flex items-center gap-2 rounded-lg border border-input bg-secondary px-3 py-1.5",
+        "flex items-center gap-2 border border-transparent font-headline text-xl bg-secondary p-4 hover:border-black hover:text-muted-foreground",
         className,
       )}
     >
-      <Search className="size-4 shrink-0 text-muted-foreground" />
+      <Search className="size-5 shrink-0 text-muted-foreground" />
       <input
         ref={inputRef}
         value={texto}
         onChange={(e) => alEscribir(e.target.value)}
         placeholder={placeholder}
-        className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+        className="w-full bg-transparent outline-none"
       />
     </div>
   );

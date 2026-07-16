@@ -1,0 +1,1 @@
+select * from originacion.solicitudes where estado='evaluada';

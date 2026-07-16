@@ -9,7 +9,6 @@ import { diaSiguiente, pesos, pesosCompacto } from "@/lib/format";
 import { ColumnasMensuales, Kpi, PageHeader, Tarjeta } from "@/components/panel/ui";
 import { TablaSolicitudes } from "@/components/shared/tabla-solicitudes";
 import { InputBusqueda } from "@/components/shared/input-busqueda";
-import { FiltrosSolicitudes } from "@/components/shared/filtros-solicitudes";
 import { SelectorPorPagina } from "@/components/shared/selector-por-pagina";
 import { Paginacion } from "@/components/shared/paginacion";
 
@@ -30,6 +29,8 @@ export default async function TiendaPage({
     vendedor?: string;
     desde?: string;
     hasta?: string;
+    orden?: string;
+    dir?: string;
   }>;
 }) {
   const params = await searchParams;
@@ -64,6 +65,8 @@ export default async function TiendaPage({
             creadoPor: params.vendedor,
             desdeFecha: params.desde,
             hastaFecha: params.hasta ? diaSiguiente(params.hasta) : undefined,
+            orden: params.orden,
+            direccion: params.dir === "asc" ? "asc" : "desc",
             pagina,
             porPagina,
           }),
@@ -90,7 +93,7 @@ export default async function TiendaPage({
 
   function hrefPagina(destino: number): string {
     const qs = new URLSearchParams();
-    for (const clave of ["solQuery", "decision", "estado", "moto", "vendedor", "desde", "hasta"] as const) {
+    for (const clave of ["solQuery", "decision", "estado", "moto", "vendedor", "desde", "hasta", "orden", "dir"] as const) {
       if (params[clave]) qs.set(clave, params[clave]!);
     }
     qs.set("porPagina", String(porPagina));
@@ -171,14 +174,14 @@ export default async function TiendaPage({
             className="w-64 sm:w-80"
           />
         </div>
-        <div className="mt-3">
-          <FiltrosSolicitudes
+        <div className="mt-4">
+          <TablaSolicitudes
+            solicitudes={solicitudes}
+            conReasignar
+            conVendedor
             motos={catalogoMotos.items.map((m) => m.nombre)}
             vendedores={desempeno.map((v) => ({ id: v.creado_por, nombre: v.vendedor_nombre }))}
           />
-        </div>
-        <div className="mt-4">
-          <TablaSolicitudes solicitudes={solicitudes} conReasignar conVendedor />
         </div>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
           <SelectorPorPagina param="porPagina" resetParam="pagina" />
