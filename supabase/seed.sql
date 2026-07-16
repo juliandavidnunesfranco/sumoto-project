@@ -5,9 +5,9 @@
 -- =============================================================================
 
 -- 1. Tiendas ------------------------------------------------------------------
-insert into public.tiendas (id, nombre, ciudad) values
-  ('11111111-1111-4111-8111-111111111111', 'SUMOTO Bogotá Norte', 'Bogotá'),
-  ('22222222-2222-4222-8222-222222222222', 'SUMOTO Medellín Centro', 'Medellín');
+insert into public.tiendas (id, nombre, ciudad, meta_colocacion_centavos) values
+  ('11111111-1111-4111-8111-111111111111', 'SUMOTO Bogotá Norte', 'Bogotá', 2500000000),
+  ('22222222-2222-4222-8222-222222222222', 'SUMOTO Medellín Centro', 'Medellín', 2000000000);
 
 -- 2. Usuarios por rol (auth) + perfiles ----------------------------------------
 do $$

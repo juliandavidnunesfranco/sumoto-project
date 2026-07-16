@@ -14,7 +14,7 @@ import { TablaDatos } from "@/components/shared/tabla-datos";
 import { columnasSolicitudes } from "@/components/shared/columnas-solicitudes";
 import { SelectorPorPagina } from "@/components/shared/selector-por-pagina";
 import { Paginacion } from "@/components/shared/paginacion";
-import { crearTableQuery } from "@/lib/tabla.query";
+import { crearTableQuery, hrefConParams } from "@/lib/tabla.query";
 
 export const dynamic = "force-dynamic";
 
@@ -89,6 +89,7 @@ export default async function MisSolicitudes({
         <TablaDatos
           titulo="Solicitudes"
           busqueda={{ param: "solQuery", placeholder: "Cliente, cédula, moto o #id…" }}
+          exportarHref={hrefConParams("/solicitudes/exportar", params)}
           columnas={columnas}
           filas={solicitudes}
           claveFila={(s) => s.solicitud_id}

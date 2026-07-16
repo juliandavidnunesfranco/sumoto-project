@@ -52,3 +52,17 @@ export function crearTableQuery<
     filtros,
   };
 }
+
+// Href que arrastra los searchParams vigentes (para exportar CSV con los
+// mismos filtros/orden/búsqueda que la tabla muestra). La ruta destino
+// vuelve a validar rol y whitelist — esto es solo el eslabón de la URL.
+export function hrefConParams(
+  base: string,
+  searchParams: Record<string, string | undefined>,
+): string {
+  const qs = new URLSearchParams();
+  for (const [clave, valor] of Object.entries(searchParams)) {
+    if (valor) qs.set(clave, valor);
+  }
+  return qs.size ? `${base}?${qs.toString()}` : base;
+}

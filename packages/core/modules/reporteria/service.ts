@@ -118,6 +118,8 @@ export interface CarteraPorTienda {
   creditos_activos: number;
   capital_total_centavos: number;
   capital_vencido_centavos: number;
+  /** Meta de colocación mensual de la tienda (0 = sin meta definida). */
+  meta_colocacion_centavos: number;
 }
 
 export interface SolicitudReciente {

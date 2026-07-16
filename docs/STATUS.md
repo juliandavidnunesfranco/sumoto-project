@@ -346,10 +346,11 @@ En su lugar:
 
 ### Backlog acordado para la tarde del 2026-07-15 (Julián aceptó TODAS)
 Propuestas mías aceptadas ("me gustan todas"):
-1. Meta de colocación mensual con barra de progreso (requiere campo meta en
-   `public.tiendas` — migración).
-2. Alerta de mora de la tienda en `/hoy` (dato ya existe en reporteria).
-3. Exportar CSV de las tablas respetando los filtros activos.
+1. ~~Meta de colocación mensual con barra de progreso~~ ✅ HECHO 2026-07-17
+   (migración meta_colocacion_centavos + barra en /tienda). Ver bitácora.
+2. ~~Alerta de mora de la tienda en `/hoy`~~ ✅ HECHO 2026-07-17. Ver bitácora.
+3. ~~Exportar CSV respetando los filtros activos~~ ✅ HECHO 2026-07-17
+   (3 rutas de descarga + botón CSV en TablaDatos). Ver bitácora.
 
 Ideas nuevas de Julián (mismo mensaje):
 4. ~~**Tabla genérica compartida**~~ ✅ HECHO 2026-07-15: `TablaDatos`
@@ -960,4 +961,33 @@ Ideas nuevas de Julián (mismo mensaje):
   navegador con los 4 roles: recQuery=2026-07 y recQuery=2778731 (monto tal
   como se ve), asiQuery=desembolso, tiendaQuery=norte,
   solQuery=12000000 (solicitudes por monto). tsc limpio.
+- 2026-07-17 (mediodía): META DE COLOCACIÓN por tienda — migración
+  `20260716153640_tiendas_meta_colocacion`: columna
+  `meta_colocacion_centavos` en public.tiendas (dato organizacional, como
+  perfiles) expuesta por la vista `cartera_por_tienda` (columna nueva AL
+  FINAL: create or replace view no reordena columnas); metas demo $25M
+  Bogotá / $20M Medellín, también en seed.sql para sobrevivir db reset.
+  UI: BarraHorizontal en la tarjeta "Colocación mensual" de /tienda con el
+  mes corriente vs meta (verde al 100%+). Verificado: "Meta jul. $14,3M de
+  $25,0M · 57%". Aplicada con `pnpm supabase migration up` (sin reset: los
+  datos de demo del desembolso sobreviven).
+- 2026-07-17 (mediodía): ALERTA DE MORA en /hoy — banner ámbar bajo el
+  header si la tienda del manager carga capital vencido (dato de
+  cartera_por_tienda, % sobre el saldo). Verificado: "$24,4M en cartera
+  vencida (43% del saldo)".
+- 2026-07-17 (mediodía): EXPORTAR CSV RESPETANDO FILTROS ACTIVOS —
+  `lib/csv.ts` (RFC 4180: CRLF, comillas dobladas, BOM UTF-8 para Excel;
+  `pesosCsv` exporta pesos con 2 decimales — el CSV conserva el centavo
+  que la UI redondea) + 3 route handlers delgados (guarda de rol →
+  fachada → serializar): `/solicitudes/exportar` (vendedor Y manager, el
+  ALCANCE se re-aplica en la ruta por sesión — jamás se confía en la URL),
+  `/contabilidad/exportar` (contable) y `/cartera/exportar-recaudo`
+  (financiero). Los filtros de la URL pasan CRUDOS a la fachada: el mapa
+  de estrategias del core es la whitelist (crearTableQuery es cortesía de
+  la UI, no la frontera). `TablaDatos` ganó prop `exportarHref` (botón CSV
+  junto a la búsqueda, patrón de subrayado) y `hrefConParams()` en
+  lib/tabla.query.ts arrastra los searchParams vigentes. Los layouts NO
+  protegen route handlers → cada ruta llama exigirRol (dos puertas).
+  Verificado con descargas reales: solicitudes con decision=APROBADO+orden
+  desc, recaudo con pagos=gte:15, asientos con origen=desembolso.
 - (agregar nuevas decisiones aquí con fecha)

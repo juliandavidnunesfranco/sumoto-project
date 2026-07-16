@@ -10,7 +10,7 @@ import { BarraHorizontal, Kpi, PageHeader, Tarjeta } from "@/components/panel/ui
 import { desembolsarSolicitud } from "./actions";
 import { TablaDatos, type ColumnaDatos } from "@/components/shared/tabla-datos";
 import { columnasSolicitudes } from "@/components/shared/columnas-solicitudes";
-import { crearTableQuery } from "@/lib/tabla.query";
+import { crearTableQuery, hrefConParams } from "@/lib/tabla.query";
 
 export const dynamic = "force-dynamic";
 
@@ -247,6 +247,7 @@ export default async function DashboardCartera({
             param: "recQuery",
             placeholder: "Mes (2026-07), pagos o monto en pesos…",
           }}
+          exportarHref={hrefConParams("/cartera/exportar-recaudo", params)}
           columnas={COLUMNAS}
           filas={recaudo}
           claveFila={(r) => r.mes}

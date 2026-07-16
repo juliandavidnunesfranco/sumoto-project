@@ -9,7 +9,7 @@ import type { FiltrosAsientos } from "@sumo/contracts";
 import { pesos } from "@/lib/format";
 import { Kpi, PageHeader, Tarjeta } from "@/components/panel/ui";
 import { TablaDatos, type ColumnaDatos } from "@/components/shared/tabla-datos";
-import { crearTableQuery } from "@/lib/tabla.query";
+import { crearTableQuery, hrefConParams } from "@/lib/tabla.query";
 import { cn } from "@/lib/cn";
 
 export const dynamic = "force-dynamic";
@@ -124,6 +124,7 @@ export default async function ContabilidadPage({
             param: "asiQuery",
             placeholder: "Descripción, origen, monto o fecha…",
           }}
+          exportarHref={hrefConParams("/contabilidad/exportar", params)}
           columnas={COLUMNAS}
           filas={asientos}
           claveFila={(a) => a.asiento_id}

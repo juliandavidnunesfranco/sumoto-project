@@ -2,7 +2,7 @@
 // citas de la agenda de hoy, solicitudes creadas hoy y colocación del día.
 
 import Link from "next/link";
-import { CalendarDays, MapPin, Users } from "lucide-react";
+import { CalendarDays, MapPin, TriangleAlert, Users } from "lucide-react";
 import type { FiltrosSolicitudes } from "@sumo/contracts";
 import type { SolicitudReciente } from "@sumo/core";
 import { obtenerSesion } from "@/lib/auth";
@@ -43,14 +43,24 @@ export default async function HoyPage({
 
   // Primera tanda: lo que las columnas necesitan para sus filtros (motos,
   // vendedores); las solicitudes van después (crearTableQuery lee columnas).
-  const [citas, colocacion, desempeno, catalogoMotos] = sesion?.tiendaId
+  const [citas, colocacion, desempeno, catalogoMotos, porTienda] = sesion?.tiendaId
     ? await Promise.all([
         agendaService().citasEntre(sesion.tiendaId, inicioDia, finDia),
         reporteriaService().colocacionDiaria(sesion.tiendaId, hoyIso, mananaIso),
         reporteriaService().desempenoVendedores(sesion.tiendaId),
         catalogoService().buscarMotos({ pagina: 1, porPagina: 50 }),
+        reporteriaService().carteraPorTienda(),
       ])
-    : [[], [], [], { items: [], total: 0 }];
+    : [[], [], [], { items: [], total: 0 }, []];
+
+  // alerta de mora de LA tienda (backlog 2026-07-15): el manager abre su
+  // día sabiendo cuánta cartera vencida carga la tienda
+  const miTienda = porTienda.find((t) => t.tienda_id === sesion?.tiendaId);
+  const vencido = miTienda?.capital_vencido_centavos ?? 0;
+  const pctVencido =
+    miTienda && miTienda.capital_total_centavos > 0
+      ? Math.round((vencido / miTienda.capital_total_centavos) * 100)
+      : 0;
 
   // el período es fijo (HOY): los encabezados solo narran orden y filtros
   // de columna, jamás mueven el día — por eso conFiltroFechas apagado y el
@@ -90,6 +100,18 @@ export default async function HoyPage({
         titulo="Hoy"
         descripcion={`${FECHA_LARGA.format(hoy)} · lo que está pasando en tu tienda.`}
       />
+
+      {vencido > 0 && (
+        <p className="mb-4 flex items-center gap-2 border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-700">
+          <TriangleAlert className="size-4 shrink-0" />
+          <span>
+            Tu tienda carga{" "}
+            <strong className="tabular-nums">{pesosCompacto(vencido)}</strong> en
+            cartera vencida ({pctVencido}% del saldo) — prioriza la gestión de
+            cobro de hoy.
+          </span>
+        </p>
+      )}
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Kpi titulo="Solicitudes de hoy" valor={String(total)} acento="primary" />

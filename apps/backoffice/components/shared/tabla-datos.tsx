@@ -5,6 +5,7 @@
 // (con su render) viven en el server, así que aquí pueden viajar funciones.
 
 import type { ReactNode } from "react";
+import { Download } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
   EncabezadoColumna,
@@ -31,6 +32,7 @@ export function TablaDatos<T>({
   busqueda,
   paramOrden,
   paramDir,
+  exportarHref,
 }: {
   columnas: ColumnaDatos<T>[];
   filas: T[];
@@ -46,23 +48,40 @@ export function TablaDatos<T>({
    *  misma página no se pisen (crearTableQuery debe recibir los mismos). */
   paramOrden?: string;
   paramDir?: string;
+  /** Href de descarga CSV (la página lo arma con hrefConParams: la ruta
+   *  recibe los MISMOS searchParams y respeta filtros/orden/búsqueda). */
+  exportarHref?: string;
 }) {
   // El encabezado (título + búsqueda) vive FUERA del early-return de vacío:
   // si una búsqueda no encuentra filas, el input debe seguir ahí para
   // poder corregirla o borrarla.
   const encabezado =
-    titulo || busqueda ? (
+    titulo || busqueda || exportarHref ? (
       <div className="flex flex-wrap items-center justify-between gap-3">
         {titulo && <h2 className="font-headline text-3xl">{titulo}</h2>}
-        {busqueda && (
-          <InputBusqueda
-            param={busqueda.param}
-            placeholder={busqueda.placeholder}
-            limpiarParams={["pagina"]}
-            // flexible: encoge para quedar a la altura del título (tope
-            // 320px, piso 160px — por debajo, envuelve a la línea siguiente)
-            className="min-w-40 max-w-80 flex-1"
-          />
+        {(busqueda || exportarHref) && (
+          // grupo flexible: encoge para quedar a la altura del título (tope
+          // 384px, piso 160px — por debajo, envuelve a la línea siguiente)
+          <div className="flex min-w-40 max-w-96 flex-1 items-center gap-2">
+            {busqueda && (
+              <InputBusqueda
+                param={busqueda.param}
+                placeholder={busqueda.placeholder}
+                limpiarParams={["pagina"]}
+                className="min-w-0 flex-1"
+              />
+            )}
+            {exportarHref && (
+              <a
+                href={exportarHref}
+                title="Exportar CSV — respeta los filtros, la búsqueda y el orden activos"
+                className="ml-auto flex shrink-0 items-center gap-1.5 border border-transparent border-b-black px-2 py-1.5 font-headline text-sm transition-colors hover:border-black"
+              >
+                <Download className="size-4" />
+                CSV
+              </a>
+            )}
+          </div>
         )}
       </div>
     ) : null;

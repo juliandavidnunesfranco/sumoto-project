@@ -8,12 +8,18 @@ import type { SolicitudReciente } from "@sumo/core";
 import { obtenerSesion } from "@/lib/auth";
 import { catalogoService, reporteriaService } from "@/lib/core-server";
 import { pesos, pesosCompacto } from "@/lib/format";
-import { ColumnasMensuales, Kpi, PageHeader, Tarjeta } from "@/components/panel/ui";
+import {
+  BarraHorizontal,
+  ColumnasMensuales,
+  Kpi,
+  PageHeader,
+  Tarjeta,
+} from "@/components/panel/ui";
 import { TablaDatos } from "@/components/shared/tabla-datos";
 import { columnasSolicitudes } from "@/components/shared/columnas-solicitudes";
 import { SelectorPorPagina } from "@/components/shared/selector-por-pagina";
 import { Paginacion } from "@/components/shared/paginacion";
-import { crearTableQuery } from "@/lib/tabla.query";
+import { crearTableQuery, hrefConParams } from "@/lib/tabla.query";
 
 export const dynamic = "force-dynamic";
 
@@ -90,6 +96,12 @@ export default async function TiendaPage({
   const colocacionAnio = meses.reduce((a, m) => a + m.valor, 0);
   const tasa = totalSolicitudes > 0 ? Math.round((totalAprobadas / totalSolicitudes) * 100) : 0;
 
+  // meta de colocación del mes corriente: el último de `meses` ES el mes
+  // actual (la serie se construye hacia atrás desde hoy)
+  const colocacionMes = meses[meses.length - 1]?.valor ?? 0;
+  const meta = miTienda?.meta_colocacion_centavos ?? 0;
+  const pctMeta = meta > 0 ? Math.round((colocacionMes / meta) * 100) : 0;
+
   function hrefPagina(destino: number): string {
     const qs = new URLSearchParams();
     for (const [clave, valor] of Object.entries(params)) {
@@ -121,6 +133,17 @@ export default async function TiendaPage({
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <Tarjeta>
           <h2 className="font-semibold font-headline text-3xl">Colocación mensual</h2>
+          {meta > 0 && (
+            <div className="mt-4">
+              <BarraHorizontal
+                etiqueta={`Meta ${MES_CORTO.format(hoy)}`}
+                valor={colocacionMes}
+                max={meta}
+                color={pctMeta >= 100 ? "bg-emerald-500" : "bg-primary"}
+                detalle={`${pesosCompacto(colocacionMes)} de ${pesosCompacto(meta)} · ${pctMeta}%`}
+              />
+            </div>
+          )}
           <div className="mt-6">
             <ColumnasMensuales
               datos={meses.map((m) => ({ etiqueta: m.etiqueta, valor: m.valor }))}
@@ -170,6 +193,7 @@ export default async function TiendaPage({
             param: "solQuery",
             placeholder: "Cliente, cédula, moto, vendedor o #id…",
           }}
+          exportarHref={hrefConParams("/solicitudes/exportar", params)}
           columnas={columnas}
           filas={solicitudes}
           claveFila={(s) => s.solicitud_id}
