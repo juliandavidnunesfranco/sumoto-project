@@ -3,14 +3,17 @@
 // por vendedor (vía creado_por) y solicitudes con búsqueda + filtro. Todo
 // server component sobre fachadas del core.
 
+import type { FiltrosSolicitudes } from "@sumo/contracts";
+import type { SolicitudReciente } from "@sumo/core";
 import { obtenerSesion } from "@/lib/auth";
 import { catalogoService, reporteriaService } from "@/lib/core-server";
-import { diaSiguiente, pesos, pesosCompacto } from "@/lib/format";
+import { pesos, pesosCompacto } from "@/lib/format";
 import { ColumnasMensuales, Kpi, PageHeader, Tarjeta } from "@/components/panel/ui";
-import { TablaSolicitudes } from "@/components/shared/tabla-solicitudes";
-import { InputBusqueda } from "@/components/shared/input-busqueda";
+import { TablaDatos } from "@/components/shared/tabla-datos";
+import { columnasSolicitudes } from "@/components/shared/columnas-solicitudes";
 import { SelectorPorPagina } from "@/components/shared/selector-por-pagina";
 import { Paginacion } from "@/components/shared/paginacion";
+import { crearTableQuery } from "@/lib/tabla.query";
 
 export const dynamic = "force-dynamic";
 
@@ -19,19 +22,7 @@ const MES_CORTO = new Intl.DateTimeFormat("es-CO", { month: "short" });
 export default async function TiendaPage({
   searchParams,
 }: {
-  searchParams: Promise<{
-    pagina?: string;
-    porPagina?: string;
-    solQuery?: string;
-    decision?: string;
-    estado?: string;
-    moto?: string;
-    vendedor?: string;
-    desde?: string;
-    hasta?: string;
-    orden?: string;
-    dir?: string;
-  }>;
+  searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const params = await searchParams;
   const pagina = Math.max(1, Number(params.pagina) || 1);
@@ -48,31 +39,39 @@ export default async function TiendaPage({
     .toISOString()
     .slice(0, 10);
 
-  // manager sin tienda asignada = estado anómalo: todo vacío, nunca nacional
-  const [porTienda, desempeno, colocacion, { items: solicitudes, total }, catalogoMotos] =
-    sesion?.tiendaId
-      ? await Promise.all([
-          svc.carteraPorTienda(),
-          svc.desempenoVendedores(sesion.tiendaId),
-          svc.colocacionDiaria(sesion.tiendaId, desde),
-          svc.solicitudesPaginadas({
-            tiendaId: sesion.tiendaId,
-            query: params.solQuery,
-            decision: params.decision,
-            estado: params.estado,
-            moto: params.moto,
-            // filtro por columna Vendedor = creadoPor
-            creadoPor: params.vendedor,
-            desdeFecha: params.desde,
-            hastaFecha: params.hasta ? diaSiguiente(params.hasta) : undefined,
-            orden: params.orden,
-            direccion: params.dir === "asc" ? "asc" : "desc",
-            pagina,
-            porPagina,
-          }),
-          catalogoService().buscarMotos({ pagina: 1, porPagina: 50 }),
-        ])
-      : [[], [], [], { items: [], total: 0 }, { items: [], total: 0 }];
+  // manager sin tienda asignada = estado anómalo: todo vacío, nunca nacional.
+  // Primera tanda: lo que las COLUMNAS necesitan para sus filtros (motos del
+  // catálogo, vendedores del desempeño); las solicitudes van después porque
+  // crearTableQuery lee esas columnas.
+  const [porTienda, desempeno, colocacion, catalogoMotos] = sesion?.tiendaId
+    ? await Promise.all([
+        svc.carteraPorTienda(),
+        svc.desempenoVendedores(sesion.tiendaId),
+        svc.colocacionDiaria(sesion.tiendaId, desde),
+        catalogoService().buscarMotos({ pagina: 1, porPagina: 50 }),
+      ])
+    : [[], [], [], { items: [], total: 0 }];
+
+  const columnas = columnasSolicitudes({
+    conReasignar: true,
+    conVendedor: true,
+    motos: catalogoMotos.items.map((m) => m.nombre),
+    vendedores: desempeno.map((v) => ({ id: v.creado_por, nombre: v.vendedor_nombre })),
+  });
+  const tableQuery = crearTableQuery<SolicitudReciente, FiltrosSolicitudes>(
+    params,
+    columnas,
+  );
+
+  const { items: solicitudes, total } = sesion?.tiendaId
+    ? await svc.solicitudesPaginadas({
+        tiendaId: sesion.tiendaId,
+        query: params.solQuery,
+        ...tableQuery,
+        pagina,
+        porPagina,
+      })
+    : { items: [], total: 0 };
 
   const miTienda = porTienda.find((t) => t.tienda_id === sesion?.tiendaId);
 
@@ -93,8 +92,8 @@ export default async function TiendaPage({
 
   function hrefPagina(destino: number): string {
     const qs = new URLSearchParams();
-    for (const clave of ["solQuery", "decision", "estado", "moto", "vendedor", "desde", "hasta", "orden", "dir"] as const) {
-      if (params[clave]) qs.set(clave, params[clave]!);
+    for (const [clave, valor] of Object.entries(params)) {
+      if (valor && clave !== "pagina") qs.set(clave, valor);
     }
     qs.set("porPagina", String(porPagina));
     qs.set("pagina", String(destino));
@@ -165,24 +164,16 @@ export default async function TiendaPage({
       </div>
 
       <Tarjeta className="mt-6 overflow-x-auto">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-semibold font-headline text-3xl">Solicitudes de la tienda</h2>
-          <InputBusqueda
-            param="solQuery"
-            placeholder="Cliente, cédula, moto, vendedor o #id…"
-            limpiarParams={["pagina"]}
-            className="w-64 sm:w-80"
-          />
-        </div>
-        <div className="mt-4">
-          <TablaSolicitudes
-            solicitudes={solicitudes}
-            conReasignar
-            conVendedor
-            motos={catalogoMotos.items.map((m) => m.nombre)}
-            vendedores={desempeno.map((v) => ({ id: v.creado_por, nombre: v.vendedor_nombre }))}
-          />
-        </div>
+        <TablaDatos
+          titulo="Solicitudes de la tienda"
+          busqueda={{
+            param: "solQuery",
+            placeholder: "Cliente, cédula, moto, vendedor o #id…",
+          }}
+          columnas={columnas}
+          filas={solicitudes}
+          claveFila={(s) => s.solicitud_id}
+        />
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
           <SelectorPorPagina param="porPagina" resetParam="pagina" />
           <Paginacion

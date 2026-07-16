@@ -5,9 +5,11 @@
 
 import { reporteriaService } from "@/lib/core-server";
 import type { AsientoReciente } from "@sumo/core";
+import type { FiltrosAsientos } from "@sumo/contracts";
 import { pesos } from "@/lib/format";
 import { Kpi, PageHeader, Tarjeta } from "@/components/panel/ui";
 import { TablaDatos, type ColumnaDatos } from "@/components/shared/tabla-datos";
+import { crearTableQuery } from "@/lib/tabla.query";
 import { cn } from "@/lib/cn";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +35,7 @@ const COLUMNAS: ColumnaDatos<AsientoReciente>[] = [
   {
     titulo: "Descripción",
     claveOrden: "descripcion",
+    filtro: { param: "descripcion", tipo: "texto", placeholder: "Contiene…" },
     render: (a) => <span className="text-muted-foreground">{a.descripcion}</span>,
   },
   {
@@ -46,12 +49,14 @@ const COLUMNAS: ColumnaDatos<AsientoReciente>[] = [
   {
     titulo: "Débito",
     claveOrden: "total_debito_centavos",
+    filtro: { param: "debito", tipo: "numero", factor: 100, placeholder: "Pesos…" },
     alinear: "derecha",
     render: (a) => <span className="tabular-nums">{pesos(a.total_debito_centavos)}</span>,
   },
   {
     titulo: "Crédito",
     claveOrden: "total_credito_centavos",
+    filtro: { param: "credito", tipo: "numero", factor: 100, placeholder: "Pesos…" },
     alinear: "derecha",
     render: (a) => <span className="tabular-nums">{pesos(a.total_credito_centavos)}</span>,
   },
@@ -80,23 +85,16 @@ const COLUMNAS: ColumnaDatos<AsientoReciente>[] = [
 export default async function ContabilidadPage({
   searchParams,
 }: {
-  searchParams: Promise<{
-    origen?: string;
-    despacho?: string;
-    desde?: string;
-    hasta?: string;
-    orden?: string;
-    dir?: string;
-  }>;
+  searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const params = await searchParams;
+  const tableQuery = crearTableQuery<AsientoReciente, FiltrosAsientos>(
+    params,
+    COLUMNAS,
+  );
   const asientos = await reporteriaService().asientosRecientes({
-    eventoOrigen: params.origen,
-    despacho: params.despacho,
-    desdeFecha: params.desde,
-    hastaFecha: params.hasta,
-    orden: params.orden,
-    direccion: params.dir === "asc" ? "asc" : "desc",
+    query: params.asiQuery,
+    ...tableQuery,
     limite: 30,
   });
 
@@ -120,15 +118,17 @@ export default async function ContabilidadPage({
       </div>
 
       <Tarjeta className="mt-6 overflow-x-auto">
-        <h2 className="font-semibold">Últimos asientos</h2>
-        <div className="mt-4">
-          <TablaDatos
-            columnas={COLUMNAS}
-            filas={asientos}
-            claveFila={(a) => a.asiento_id}
-            vacio="Sin asientos todavía — se generan al desembolsar créditos o registrar pagos."
-          />
-        </div>
+        <TablaDatos
+          titulo="Últimos asientos"
+          busqueda={{
+            param: "asiQuery",
+            placeholder: "Descripción, origen, monto o fecha…",
+          }}
+          columnas={COLUMNAS}
+          filas={asientos}
+          claveFila={(a) => a.asiento_id}
+          vacio="Sin asientos todavía — se generan al desembolsar créditos o registrar pagos."
+        />
       </Tarjeta>
     </div>
   );

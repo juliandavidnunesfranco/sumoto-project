@@ -3,11 +3,15 @@
 
 import Link from "next/link";
 import { CalendarDays, MapPin, Users } from "lucide-react";
+import type { FiltrosSolicitudes } from "@sumo/contracts";
+import type { SolicitudReciente } from "@sumo/core";
 import { obtenerSesion } from "@/lib/auth";
-import { agendaService, reporteriaService } from "@/lib/core-server";
+import { agendaService, catalogoService, reporteriaService } from "@/lib/core-server";
 import { diaSiguiente, pesosCompacto } from "@/lib/format";
 import { Kpi, PageHeader, Tarjeta } from "@/components/panel/ui";
-import { TablaSolicitudes } from "@/components/shared/tabla-solicitudes";
+import { TablaDatos } from "@/components/shared/tabla-datos";
+import { columnasSolicitudes } from "@/components/shared/columnas-solicitudes";
+import { crearTableQuery } from "@/lib/tabla.query";
 
 export const dynamic = "force-dynamic";
 
@@ -26,14 +30,7 @@ function claveDia(fecha: Date): string {
 export default async function HoyPage({
   searchParams,
 }: {
-  searchParams: Promise<{
-    orden?: string;
-    dir?: string;
-    decision?: string;
-    estado?: string;
-    moto?: string;
-    vendedor?: string;
-  }>;
+  searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const params = await searchParams;
   const sesion = await obtenerSesion();
@@ -44,29 +41,45 @@ export default async function HoyPage({
   const inicioDia = new Date(`${hoyIso}T00:00:00`).toISOString();
   const finDia = new Date(`${mananaIso}T00:00:00`).toISOString();
 
-  const [citas, colocacion, { items: solicitudes, total }] = sesion?.tiendaId
+  // Primera tanda: lo que las columnas necesitan para sus filtros (motos,
+  // vendedores); las solicitudes van después (crearTableQuery lee columnas).
+  const [citas, colocacion, desempeno, catalogoMotos] = sesion?.tiendaId
     ? await Promise.all([
         agendaService().citasEntre(sesion.tiendaId, inicioDia, finDia),
         reporteriaService().colocacionDiaria(sesion.tiendaId, hoyIso, mananaIso),
-        reporteriaService().solicitudesPaginadas({
-          tiendaId: sesion.tiendaId,
-          // el período es fijo (HOY): los encabezados solo narran orden y
-          // filtros de columna, jamás mueven el día. Límites como INSTANTES
-          // (no fecha plana): creado_en es timestamptz y una solicitud de las
-          // 8 p. m. ya cae en "mañana" UTC — se perdía de la tabla.
-          desdeFecha: inicioDia,
-          hastaFecha: finDia,
-          decision: params.decision,
-          estado: params.estado,
-          moto: params.moto,
-          creadoPor: params.vendedor,
-          orden: params.orden,
-          direccion: params.dir === "asc" ? "asc" : "desc",
-          pagina: 1,
-          porPagina: 20,
-        }),
+        reporteriaService().desempenoVendedores(sesion.tiendaId),
+        catalogoService().buscarMotos({ pagina: 1, porPagina: 50 }),
       ])
-    : [[], [], { items: [], total: 0 }];
+    : [[], [], [], { items: [], total: 0 }];
+
+  // el período es fijo (HOY): los encabezados solo narran orden y filtros
+  // de columna, jamás mueven el día — por eso conFiltroFechas apagado y el
+  // rango viaja como ALCANCE (desdeFecha/hastaFecha). Límites como INSTANTES
+  // (no fecha plana): creado_en es timestamptz y una solicitud de las
+  // 8 p. m. ya cae en "mañana" UTC — se perdía de la tabla.
+  const columnas = columnasSolicitudes({
+    conReasignar: true,
+    conVendedor: true,
+    conFiltroFechas: false,
+    motos: catalogoMotos.items.map((m) => m.nombre),
+    vendedores: desempeno.map((v) => ({ id: v.creado_por, nombre: v.vendedor_nombre })),
+  });
+  const tableQuery = crearTableQuery<SolicitudReciente, FiltrosSolicitudes>(
+    params,
+    columnas,
+  );
+
+  const { items: solicitudes, total } = sesion?.tiendaId
+    ? await reporteriaService().solicitudesPaginadas({
+        tiendaId: sesion.tiendaId,
+        desdeFecha: inicioDia,
+        hastaFecha: finDia,
+        query: params.solQuery,
+        ...tableQuery,
+        pagina: 1,
+        porPagina: 20,
+      })
+    : { items: [], total: 0 };
 
   const colocacionHoy = colocacion.reduce((a, c) => a + c.monto_centavos, 0);
   const aprobadasHoy = solicitudes.filter((s) => s.decision_resultado === "APROBADO").length;
@@ -138,10 +151,14 @@ export default async function HoyPage({
         </Tarjeta>
 
         <Tarjeta className="overflow-x-auto">
-          <h2 className="font-semibold font-headline text-3xl">Solicitudes de hoy</h2>
-          <div className="mt-4">
-            <TablaSolicitudes solicitudes={solicitudes} conReasignar conVendedor conFiltroFechas={false} />
-          </div>
+          <TablaDatos
+            titulo="Solicitudes de hoy"
+            busqueda={{ param: "solQuery", placeholder: "Cliente, moto o #id…" }}
+            columnas={columnas}
+            filas={solicitudes}
+            claveFila={(s) => s.solicitud_id}
+            vacio="Sin solicitudes hoy (todavía)."
+          />
         </Tarjeta>
       </div>
     </div>

@@ -2,19 +2,17 @@
 // fachada ReporteriaService del core — la app jamás toca la base directo.
 
 import { BanknoteArrowDown } from "lucide-react";
-import { reporteriaService } from "@/lib/core-server";
+import type { FiltrosRecaudoMensual, FiltrosSolicitudes } from "@sumo/contracts";
+import type { SolicitudReciente } from "@sumo/core";
+import { catalogoService, reporteriaService } from "@/lib/core-server";
 import { pesos, pesosCompacto } from "@/lib/format";
 import { BarraHorizontal, Kpi, PageHeader, Tarjeta } from "@/components/panel/ui";
 import { desembolsarSolicitud } from "./actions";
 import { TablaDatos, type ColumnaDatos } from "@/components/shared/tabla-datos";
-import { PagoRegistrado } from "@sumo/core";
+import { columnasSolicitudes } from "@/components/shared/columnas-solicitudes";
+import { crearTableQuery } from "@/lib/tabla.query";
 
 export const dynamic = "force-dynamic";
-
-const FECHA_CORTA = new Intl.DateTimeFormat("es-CO", {
-  day: "numeric",
-  month: "short",
-});
 
 const ORDEN_FRANJAS = ["0-30", "31-60", "61-90", "90+"] as const;
 
@@ -25,70 +23,132 @@ const COLORES_FRANJAS: Record<string, string> = {
   "90+": "bg-destructive",
 };
 
+type RecaudoMensual = Awaited<
+  ReturnType<ReturnType<typeof reporteriaService>["recaudoMensual"]>
+>[number];
 
-const COLUMNAS: ColumnaDatos<PagoRegistrado >[]=[
+// Cada columna declara su filtro: mes por rango de fechas, las numéricas
+// con comparador ("op:valor"); factor 100 = el usuario escribe pesos y la
+// URL viaja en centavos (la unidad de la vista).
+const COLUMNAS: ColumnaDatos<RecaudoMensual>[] = [
   {
-    titulo:"Mes",
-    claveOrden: "Mes",
-    render: (a)=>a.mes
+    titulo: "Mes",
+    claveOrden: "mes",
+    filtro: {
+      param: "mes",
+      tipo: "rango-fechas",
+      paramDesde: "mesDesde",
+      paramHasta: "mesHasta",
+    },
+    render: (r) => r.mes.slice(0, 7),
   },
   {
     titulo: "Pagos",
     claveOrden: "pagos",
-    filtro: {param: "Mayor", tipo: "opciones"},
-    render: (a)=> a.pagos,
+    filtro: { param: "pagos", tipo: "numero", placeholder: "Cantidad…" },
     alinear: "izquierda",
+    render: (r) => r.pagos,
   },
   {
     titulo: "Capital",
-    claveOrden: "capital",
-    filtro: {param: "Mayor", tipo: "opciones"},
-    render: (a)=> a.capital_centavos,
-    clasesCelda: "bg-green-200/30 font-headline text-lg"
+    claveOrden: "capital_centavos",
+    filtro: { param: "capital", tipo: "numero", factor: 100, placeholder: "Pesos…" },
+    alinear: "izquierda",
+    render: (r) => pesos(r.capital_centavos),
+    clasesCelda: "font-medium",
   },
   {
-    titulo: "Intereses",
-    claveOrden:"intereses",
-    //filtro:{param: "Mayor", tipo: "opciones"},
-    render: (a)=>a.intereses,
-
-  },{
-      titulo: "Mora",
-      claveOrden: "mora",
-      //filtro:{param: "Mayor", tipo: "opciones"},
-      render: (a)=>a.mora,
+    titulo: "Interés",
+    claveOrden: "interes_centavos",
+    filtro: { param: "interes", tipo: "numero", factor: 100, placeholder: "Pesos…" },
+    alinear: "izquierda",
+    render: (r) => pesos(r.interes_centavos),
+    clasesCelda: "text-emerald-400",
+  },
+  {
+    titulo: "Mora",
+    claveOrden: "mora_centavos",
+    filtro: { param: "mora", tipo: "numero", factor: 100, placeholder: "Pesos…" },
+    alinear: "izquierda",
+    render: (r) => pesos(r.mora_centavos),
+    clasesCelda: "text-amber-400",
   },
   {
     titulo: "Total",
-    claveOrden: "total",
-    //filtro: {param: "Mayor", tipo: "opciones"},
-    render: (a)=> a.total,
-
-  }
-]
-
-
-
-
-
+    claveOrden: "recaudo_centavos",
+    filtro: { param: "recaudo", tipo: "numero", factor: 100, placeholder: "Pesos…" },
+    alinear: "izquierda",
+    render: (r) => pesos(r.recaudo_centavos),
+    clasesCelda: "font-semibold",
+  },
+];
 
 
 export default async function DashboardCartera({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; desembolsada?: string }>;
+  searchParams: Promise<Record<string, string | undefined>>;
 }) {
-  const { error, desembolsada } = await searchParams;
+  const params = await searchParams;
+  const { error, desembolsada } = params;
+
+  const tableQuery = crearTableQuery<RecaudoMensual, FiltrosRecaudoMensual>(
+    params,
+    COLUMNAS,
+  );
+
   const svc = reporteriaService();
+
+  // el catálogo va primero: las columnas de pendientes lo necesitan para
+  // el filtro de moto, y crearTableQuery lee esas columnas
+  const catalogoMotos = await catalogoService().buscarMotos({
+    pagina: 1,
+    porPagina: 50,
+  });
+
+  // Cola de desembolso: alcance NACIONAL (el financiero desembolsa para
+  // todas las tiendas). Decisión/estado son criterio FIJO → columnas
+  // ocultas y filtros forzados DESPUÉS del spread (la URL no los pisa).
+  // Params de orden propios (penOrden/penDir): en esta página conviven
+  // dos tablas y no deben pisarse.
+  const COLUMNAS_PENDIENTES = columnasSolicitudes({
+    conWizard: false,
+    conVendedor: true,
+    conDecision: false,
+    conEstado: false,
+    motos: catalogoMotos.items.map((m) => m.nombre),
+    accionExtra: (s) => (
+      <form action={desembolsarSolicitud}>
+        <input type="hidden" name="solicitudId" value={s.solicitud_id} />
+        <button
+          type="submit"
+          className="inline-flex items-center gap-1.5 border border-black px-3 py-1.5 font-headline text-xs font-bold transition-colors hover:bg-black hover:text-white"
+        >
+          <BanknoteArrowDown className="size-3.5" />
+          Desembolsar
+        </button>
+      </form>
+    ),
+  });
+  const tqPendientes = crearTableQuery<SolicitudReciente, FiltrosSolicitudes>(
+    params,
+    COLUMNAS_PENDIENTES,
+    { paramOrden: "penOrden", paramDir: "penDir" },
+  );
+
   const [resumen, porFranja, recaudo, pendientes] = await Promise.all([
     svc.resumenCartera(),
     svc.moraPorFranja(),
-    svc.recaudoMensual(),
-    // aprobadas por el motor que aún no son crédito — alcance NACIONAL:
-    // el financiero desembolsa para todas las tiendas
+    svc.recaudoMensual({ query: params.recQuery, ...tableQuery }),
     svc.solicitudesPaginadas({
-      decision: "APROBADO",
-      estado: "evaluada",
+      query: params.desQuery,
+      orden: tqPendientes.orden,
+      direccion: tqPendientes.direccion,
+      filtros: {
+        ...tqPendientes.filtros,
+        decision: "APROBADO",
+        estado: "evaluada",
+      },
       pagina: 1,
       porPagina: 20,
     }),
@@ -128,77 +188,40 @@ export default async function DashboardCartera({
       </div>
 
       <Tarjeta className="mt-6 overflow-x-auto">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-semibold">
-            Pendientes de desembolso
-            <span className="ml-2 text-sm font-normal text-muted-foreground">
-              aprobadas por el motor · todas las tiendas
-            </span>
-          </h2>
-        </div>
-
         {error && (
-          <p className="mt-3 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <p className="mb-3 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
             No se pudo desembolsar: {error}
           </p>
         )}
         {desembolsada && (
-          <p className="mt-3 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-600">
+          <p className="mb-3 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-600">
             Crédito desembolsado (solicitud #{desembolsada}): plan de cuotas
             generado y asiento contable en camino.
           </p>
         )}
 
-        {pendientes.items.length === 0 ? (
-          <p className="mt-4 text-sm text-muted-foreground">
-            No hay solicitudes aprobadas esperando desembolso.
-          </p>
-        ) : (
-          <table className="mt-4 w-full text-sm">
-            <thead className="text-left text-muted-foreground">
-              <tr className="border-b border-border">
-                <th className="py-2 pr-4 font-medium">Solicitud</th>
-                <th className="py-2 pr-4 font-medium">Cliente</th>
-                <th className="py-2 pr-4 font-medium">Moto</th>
-                <th className="py-2 pr-4 text-right font-medium">Valor moto</th>
-                <th className="py-2 pr-4 text-right font-medium">Cuota est.</th>
-                <th className="py-2 pr-4 font-medium">Vendedor</th>
-                <th className="py-2 pr-4 font-medium">Fecha</th>
-                <th className="py-2 text-right font-medium">Acción</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border tabular-nums">
-              {pendientes.items.map((s) => (
-                <tr key={s.solicitud_id}>
-                  <td className="py-2 pr-4 font-mono text-xs">#{s.solicitud_corta}</td>
-                  <td className="py-2 pr-4">
-                    <p className="font-medium">{s.cliente_nombre}</p>
-                    <p className="text-xs text-muted-foreground">{s.cliente_cedula}</p>
-                  </td>
-                  <td className="py-2 pr-4">{s.moto_nombre}</td>
-                  <td className="py-2 pr-4 text-right">{pesos(s.valor_moto_centavos)}</td>
-                  <td className="py-2 pr-4 text-right">
-                    {pesos(s.cuota_estimada_centavos ?? 0)}
-                  </td>
-                  <td className="py-2 pr-4">{s.vendedor_nombre}</td>
-                  <td className="py-2 pr-4">{FECHA_CORTA.format(new Date(s.creado_en))}</td>
-                  <td className="py-2 text-right">
-                    <form action={desembolsarSolicitud}>
-                      <input type="hidden" name="solicitudId" value={s.solicitud_id} />
-                      <button
-                        type="submit"
-                        className="inline-flex items-center gap-1.5 border border-black px-3 py-1.5 font-headline text-xs font-bold transition-colors hover:bg-black hover:text-white"
-                      >
-                        <BanknoteArrowDown className="size-3.5" />
-                        Desembolsar
-                      </button>
-                    </form>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+        <TablaDatos
+          titulo={
+            // subtítulo en bloque (no inline): un título largo empujaba el
+            // input de búsqueda a la línea de abajo — así queda enfrentado
+            <span className="block">
+              Pendientes de desembolso
+              <span className="block font-sans text-sm font-normal text-muted-foreground">
+                aprobadas por el motor · todas las tiendas
+              </span>
+            </span>
+          }
+          busqueda={{
+            param: "desQuery",
+            placeholder: "Cliente, cédula, moto o #id…",
+          }}
+          columnas={COLUMNAS_PENDIENTES}
+          filas={pendientes.items}
+          claveFila={(s) => s.solicitud_id}
+          paramOrden="penOrden"
+          paramDir="penDir"
+          vacio="No hay solicitudes aprobadas esperando desembolso."
+        />
       </Tarjeta>
 
       <Tarjeta className="mt-6">
@@ -218,51 +241,18 @@ export default async function DashboardCartera({
       </Tarjeta>
 
       <Tarjeta className="mt-6 overflow-x-auto">
-        <h2 className="font-semibold">Recaudo por mes</h2>
-        <table className="mt-4 w-full text-sm">
-          <thead className="text-left text-muted-foreground">
-            <tr>
-              <th className="py-2 font-medium">Mes</th>
-              <th className="py-2 text-right font-medium">Pagos</th>
-              <th className="py-2 text-right font-medium">Capital</th>
-              <th className="py-2 text-right font-medium">Interés</th>
-              <th className="py-2 text-right font-medium">Mora</th>
-              <th className="py-2 text-right font-medium">Total</th>
-            </tr>
-          </thead>
-          <tbody className="tabular-nums">
-            {recaudo.map((r) => (
-              <tr key={r.mes} className="border-t border-border">
-                <td className="py-2">{r.mes.slice(0, 7)}</td>
-                <td className="py-2 text-right">{r.pagos}</td>
-                <td className="py-2 text-right">{pesos(r.capital_centavos)}</td>
-                <td className="py-2 text-right text-emerald-400">{pesos(r.interes_centavos)}</td>
-                <td className="py-2 text-right text-amber-400">{pesos(r.mora_centavos)}</td>
-                <td className="py-2 text-right font-semibold">{pesos(r.recaudo_centavos)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <TablaDatos
+          titulo="Recaudo por mes"
+          busqueda={{
+            param: "recQuery",
+            placeholder: "Mes (2026-07), pagos o monto en pesos…",
+          }}
+          columnas={COLUMNAS}
+          filas={recaudo}
+          claveFila={(r) => r.mes}
+          vacio="No hay registros de recaudo."
+        />
       </Tarjeta>
-
-      <Tarjeta className="mt-6 overflow-x-auto">
-        <h2 className="font-semibold">Recaudo por mes</h2>
-          <div className="mt-4">
-              <TablaDatos
-              columnas={COLUMNAS}
-              filas={recaudo}
-              claveFila={(a)=>a.mes}
-              vacio="xxxxxx"
-              />
-          </div>
-        
-
-
-      </Tarjeta>
-
-
-
-
     </div>
   );
 }

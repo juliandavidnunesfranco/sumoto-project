@@ -5,13 +5,16 @@
 
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import type { FiltrosSolicitudes } from "@sumo/contracts";
+import type { SolicitudReciente } from "@sumo/core";
 import { obtenerSesion } from "@/lib/auth";
 import { catalogoService, clientesService, reporteriaService } from "@/lib/core-server";
-import { diaSiguiente } from "@/lib/format";
 import { PageHeader, Tarjeta } from "@/components/panel/ui";
-import { TablaSolicitudes } from "@/components/shared/tabla-solicitudes";
+import { TablaDatos } from "@/components/shared/tabla-datos";
+import { columnasSolicitudes } from "@/components/shared/columnas-solicitudes";
 import { SelectorPorPagina } from "@/components/shared/selector-por-pagina";
 import { Paginacion } from "@/components/shared/paginacion";
+import { crearTableQuery } from "@/lib/tabla.query";
 
 export const dynamic = "force-dynamic";
 
@@ -22,17 +25,7 @@ export default async function CasosDelCliente({
   searchParams,
 }: {
   params: Promise<{ cedula: string }>;
-  searchParams: Promise<{
-    pagina?: string;
-    porPagina?: string;
-    decision?: string;
-    estado?: string;
-    moto?: string;
-    desde?: string;
-    hasta?: string;
-    orden?: string;
-    dir?: string;
-  }>;
+  searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const { cedula } = await params;
   const sp = await searchParams;
@@ -52,36 +45,43 @@ export default async function CasosDelCliente({
       ? clienteCrudo
       : null;
 
-  const [{ items: solicitudes, total }, catalogoMotos] = cliente
-    ? await Promise.all([
-        reporteriaService().solicitudesPaginadas({
-          clienteCedula: cliente.cedula,
-          ...(alcanceNacional ? {} : { tiendaId: sesion!.tiendaId! }),
-          decision: sp.decision,
-          estado: sp.estado,
-          moto: sp.moto,
-          desdeFecha: sp.desde,
-          hastaFecha: sp.hasta ? diaSiguiente(sp.hasta) : undefined,
-          orden: sp.orden,
-          direccion: sp.dir === "asc" ? "asc" : "desc",
-          pagina,
-          porPagina,
-        }),
-        catalogoService().buscarMotos({ pagina: 1, porPagina: 50 }),
-      ])
-    : [{ items: [], total: 0 }, { items: [], total: 0 }];
+  // el catálogo va primero: las columnas necesitan las motos para su filtro
+  const catalogoMotos = cliente
+    ? await catalogoService().buscarMotos({ pagina: 1, porPagina: 50 })
+    : { items: [], total: 0 };
+
+  const conWizard = sesion?.rol === "vendedor" || sesion?.rol === "manager";
+
+  const columnas = columnasSolicitudes({
+    conWizard,
+    conReasignar: sesion?.rol === "manager",
+    motos: catalogoMotos.items.map((m) => m.nombre),
+  });
+  const tableQuery = crearTableQuery<SolicitudReciente, FiltrosSolicitudes>(
+    sp,
+    columnas,
+  );
+
+  const { items: solicitudes, total } = cliente
+    ? await reporteriaService().solicitudesPaginadas({
+        clienteCedula: cliente.cedula,
+        ...(alcanceNacional ? {} : { tiendaId: sesion!.tiendaId! }),
+        query: sp.solQuery,
+        ...tableQuery,
+        pagina,
+        porPagina,
+      })
+    : { items: [], total: 0 };
 
   function hrefPagina(destino: number): string {
     const qs = new URLSearchParams();
-    for (const clave of ["decision", "estado", "moto", "desde", "hasta", "orden", "dir"] as const) {
-      if (sp[clave]) qs.set(clave, sp[clave]!);
+    for (const [clave, valor] of Object.entries(sp)) {
+      if (valor && clave !== "pagina") qs.set(clave, valor);
     }
     qs.set("porPagina", String(porPagina));
     qs.set("pagina", String(destino));
     return `/clientes/${cedula}?${qs.toString()}`;
   }
-
-  const conWizard = sesion?.rol === "vendedor" || sesion?.rol === "manager";
 
   return (
     <div>
@@ -107,17 +107,14 @@ export default async function CasosDelCliente({
           />
 
           <Tarjeta className="overflow-x-auto">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="font-semibold font-headline text-3xl">Casos del cliente</h2>
-            </div>
-            <div className="mt-4">
-              <TablaSolicitudes
-                solicitudes={solicitudes}
-                conWizard={conWizard}
-                conReasignar={sesion?.rol === "manager"}
-                motos={catalogoMotos.items.map((m) => m.nombre)}
-              />
-            </div>
+            <TablaDatos
+              titulo="Casos del cliente"
+              busqueda={{ param: "solQuery", placeholder: "Moto, vendedor o #id…" }}
+              columnas={columnas}
+              filas={solicitudes}
+              claveFila={(s) => s.solicitud_id}
+              vacio="Este cliente aún no tiene solicitudes."
+            />
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
               <SelectorPorPagina param="porPagina" resetParam="pagina" />
               <Paginacion

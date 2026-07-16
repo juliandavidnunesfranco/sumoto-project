@@ -5,3 +5,4 @@ export * from "./schemas/login";
 export * from "./schemas/register-client";
 export * from "./schemas/evaluate-application";
 export * from "./schemas/manage-credit-product";
+export * from "./dtos/reporteria";

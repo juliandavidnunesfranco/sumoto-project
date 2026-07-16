@@ -56,6 +56,22 @@ Diseñado para poder extraer módulos a servicios en el futuro sin reescribir.
   actions; el estado de wizards viaja en searchParams. Sin "use client" salvo
   necesidad demostrada. Las rutas app/api/ quedan como superficie para
   integraciones externas futuras, no para las pantallas propias.
+- **Tablas: TablaDatos + filtros por mapa de estrategias** (decisión
+  2026-07-16): toda tabla del backoffice usa `TablaDatos` (título
+  font-headline 3xl + búsqueda enfrentada + orden/filtro POR ENCABEZADO —
+  nunca tablas dedicadas ni filas de filtros aparte). Los filtros por
+  columna viajan en searchParams (`crearTableQuery` los recolecta de las
+  MISMAS columnas que se renderizan) y reporteria los aplica con un mapa de
+  estrategias por vista (`MapaFiltros<F>`): el mapa es la whitelist — clave
+  desconocida o valor malformado (NaN, fecha inválida, uuid deforme) se
+  IGNORA, jamás revienta. Convenciones de valor: numérico "op:valor"
+  (eq|gt|gte|lt|lte; la UI convierte pesos→centavos con `factor`), texto
+  ilike saneado, fechas rango inclusivo. Las interfaces de filtros se
+  DEFINEN en el core junto a su mapa y contracts las RE-EXPORTA (definirlas
+  en contracts invertiría la flecha contracts → core). Dos tablas en una
+  página = params de orden propios (`paramOrden`/`paramDir`). La búsqueda
+  de tabla debe existir en TODAS las tablas y buscar en cualquier columna
+  (implementación multi-tipo pendiente, ver STATUS.md → Siguiente).
 
 ### Kernel (packages/core/kernel/) — YA IMPLEMENTADO, no modificar sin razón fuerte
 - `container.ts` — DI con node-dependency-injection. Tokens centralizados en TOKENS.

@@ -24,3 +24,10 @@ function descomponer(fechaIso: string): [number, number, number] {
   const [anio, mes, dia] = fechaIso.split("-").map(Number);
   return [anio, mes - 1, dia];
 }
+
+// Día calendario siguiente (UTC puro, sin zona horaria): vuelve inclusivo
+// un "hasta" de fecha plana al convertirlo en un `lt` del día que sigue.
+export function diaSiguiente(fechaIso: string): string {
+  const [anio, mes, dia] = descomponer(fechaIso);
+  return new Date(Date.UTC(anio, mes, dia + 1)).toISOString().slice(0, 10);
+}

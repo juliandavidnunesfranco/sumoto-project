@@ -336,6 +336,14 @@ En su lugar:
 
 ## Siguiente (en orden) 📋
 
+### ~~Para mañana 2026-07-17~~ ✅ HECHO 2026-07-17 (mañana)
+1. ~~Búsqueda en TODAS las tablas, sobre CUALQUIER columna~~ ✅ Opción A
+   implementada: mapas de búsqueda por vista en el core. Ver bitácora
+   2026-07-17.
+2. ~~Replicar TablaDatos + filtros en contable y ceo~~ ✅ Contable con
+   filtros completos + búsqueda; CEO estrenó tabla "Cartera por tienda"
+   (carteraPorTienda ganó orden/filtros/búsqueda). Ver bitácora.
+
 ### Backlog acordado para la tarde del 2026-07-15 (Julián aceptó TODAS)
 Propuestas mías aceptadas ("me gustan todas"):
 1. Meta de colocación mensual con barra de progreso (requiere campo meta en
@@ -862,4 +870,94 @@ Ideas nuevas de Julián (mismo mensaje):
   y desaparecía de "Hoy". Ahora usa los mismos INSTANTES (inicioDia/finDia)
   que ya calculaba para las citas. Misma familia del bug del banner:
   timestamps siempre como instantes con zona, nunca fechas a secas.
+- 2026-07-16: FILTROS GENÉRICOS POR MAPA DE ESTRATEGIAS en reporteria
+  (idea de Julián: "convertir recaudoMensual en un método que aplique
+  filtros de manera genérica mediante un mapa de estrategias"). Cada vista
+  tiene su interface de filtros (`FiltrosRecaudoMensual`,
+  `FiltrosSolicitudes`) y su mapa (`MAPA_FILTROS_RECAUDO`,
+  `MAPA_FILTROS_SOLICITUDES`) en `reporteria/service.ts`; el mapped type
+  `MapaFiltros<F>` obliga a que interface y mapa no se desincronicen, y el
+  mapa ES la whitelist (clave desconocida de la URL se ignora). Helpers
+  reutilizables: `filtroTexto` (ilike con saneo anti-inyección PostgREST),
+  `filtroNumero` ("op:valor", op ∈ eq|gt|gte|lt|lte, NaN se ignora),
+  `filtroFechaDesde/Hasta` (rango inclusivo — `diaSiguiente` ahora en
+  core/shared/dates, las páginas ya no lo calculan), `filtroIgual`.
+  Los tipos se DEFINEN en el core (junto al mapa, su fuente de verdad) y
+  packages/contracts/dtos/reporteria.ts los RE-EXPORTA: definirlos en
+  contracts invertía la flecha contracts→core (contracts ya importa
+  esCedulaValida del core). `solicitudesPaginadas` conserva
+  `desdeFecha/hastaFecha` como ALCANCE crudo (el /hoy fija el día como
+  instantes), separado del filtro de columna desde/hasta.
+- 2026-07-16: TablaDatos ganó encabezado propio — prop `titulo`
+  (font-headline text-3xl) + prop `busqueda` (InputBusqueda enfrentado con
+  justify-between; decisión de Julián). El encabezado vive FUERA del
+  early-return de vacío: sin filas, el input sigue visible para corregir la
+  búsqueda. Los encabezados de columna dejaron el look badge por el patrón
+  de marco del proyecto (border-b negro fijo → marco entero en hover, solo
+  transiciona color). `EncabezadoColumna` ganó tipos de filtro `texto`
+  (input con debounce 400ms) y `numero` (select de operador ≥ > = ≤ < +
+  valor + OK; `factor: 100` = el usuario escribe PESOS y la URL narra
+  CENTAVOS — la conversión muere en la UI), y `paramOrden`/`paramDir`
+  configurables para que dos tablas de una misma página no se pisen.
+- 2026-07-16: REFACTOR DE TABLAS CONCLUIDO — las 5 vistas de solicitudes
+  usan TablaDatos directo: /solicitudes (vendedor), /tienda y /hoy
+  (manager, /hoy ganó opciones de moto/vendedor y búsqueda),
+  /clientes/[cedula] (ganó búsqueda) y "Pendientes de desembolso" en
+  /cartera (ganó búsqueda `desQuery`, orden propio `penOrden`/`penDir`,
+  columnas decisión/estado OCULTAS porque son criterio fijo de la cola y
+  se fuerzan DESPUÉS del spread para que la URL no las pise).
+  `tabla-solicitudes.tsx` BORRADO; lo reemplaza
+  `components/shared/columnas-solicitudes.tsx` (builder de config pura
+  `columnasSolicitudes(opciones)` — CADA columna declara su filtro).
+  Patrón de fetch resultante: catálogo/desempeño se consultan ANTES que
+  las solicitudes (las columnas necesitan las opciones para sus filtros y
+  crearTableQuery lee las columnas) — waterfall de 2 tandas aceptado.
+  "Recaudo por mes" (/cartera): filtros en las 6 columnas (mes por rango
+  mesDesde/mesHasta, resto numéricos con comparador). Verificado en
+  navegador con los 3 roles: valor=gte:1200000000, cliente=luisa,
+  pagos=gte:15 + orden asc. Suite 115/115, tsc limpio.
+- 2026-07-16: BUG CAZADO en la verificación — `?vendedor=basura` daba 500:
+  `creado_por` es uuid y PostgREST rechaza un eq con valor malformado. La
+  estrategia `vendedor` ahora valida forma UUID antes de aplicar. REGLA:
+  todo valor de searchParams que aterrice en una columna tipada (uuid,
+  date, numeric) valida su FORMA en la estrategia; garbage se ignora,
+  jamás revienta la página.
+- 2026-07-16 (cierre): DECISIÓN de Julián — el input de búsqueda debe
+  estar EN TODAS las tablas y debe poder buscar EN CUALQUIER COLUMNA
+  (también numéricas y fechas). Contexto: "Recaudo por mes" quedó sin
+  búsqueda porque no tiene columnas de texto y `recaudoMensual()` no tenía
+  `query` — el input NO está condicionado por tipos dentro de TablaDatos,
+  es opt-in vía prop `busqueda`, simplemente no se le pasó. Queda para
+  mañana (ver Siguiente). Fix aplicado en la misma sesión: el subtítulo de
+  "Pendientes de desembolso" pasó de inline a bloque — un título largo
+  empujaba el input de búsqueda a la línea de abajo con flex-wrap.
+- 2026-07-17 (mañana): BÚSQUEDA EN TODAS LAS TABLAS SOBRE CUALQUIER COLUMNA
+  (opción A — mapas de búsqueda por vista, hermanos de los mapas de filtro).
+  La maquinaria genérica salió de service.ts a
+  `reporteria/filtros.ts` (interna del módulo, con 14 unit tests de los
+  builders puros — suite 129/129): estrategias `buscaTexto` (ilike),
+  `buscaNumero` (con factor pesos→centavos) y `buscaFecha` ("2026"→año,
+  "2026-07"→mes, "2026-07-15"→día; rangos con and() anidado en el or() de
+  PostgREST). Un término aporta condición SOLO en las columnas cuyo tipo lo
+  acepta; si ninguna lo acepta, resultado vacío. Cuatro mapas:
+  BUSQUEDA_RECAUDO, BUSQUEDA_SOLICITUDES (absorbe el or() manual que
+  existía — ahora también busca por monto y fecha), BUSQUEDA_ASIENTOS y
+  BUSQUEDA_CARTERA_TIENDA. LECCIÓN de la verificación E2E: el eq exacto en
+  dinero casi nunca matchea — la UI muestra Math.round(centavos/100), así
+  que el usuario busca lo que VE: buscaNumero con factor>1 matchea el rango
+  de centavos que REDONDEA al peso escrito ([t·100−50, t·100+50); caso
+  real: 277873060 se muestra $2.778.731 y debía matchear).
+- 2026-07-17 (mañana): vista CONTABLE completada al patrón — filtros en
+  las 6 columnas (descripción texto, débito/crédito numéricos, origen/
+  despacho opciones, fecha rango con lte por ser date plana) vía
+  MAPA_FILTROS_ASIENTOS + FiltrosAsientos, búsqueda `asiQuery`, título 3xl.
+  Vista CEO estrenó tabla: "Cartera por tienda" pasó de barras a TablaDatos
+  (tienda/créditos/cartera/vencida, orden con whitelist, filtros por
+  columna, búsqueda `tiendaQuery`) — `carteraPorTienda()` ganó
+  query/orden/filtros retrocompatibles (el /tienda del manager la sigue
+  llamando sin argumentos). FiltrosAsientos y FiltrosCarteraTienda
+  exportados por el módulo y re-exportados por contracts. Verificado en
+  navegador con los 4 roles: recQuery=2026-07 y recQuery=2778731 (monto tal
+  como se ve), asiQuery=desembolso, tiendaQuery=norte,
+  solQuery=12000000 (solicitudes por monto). tsc limpio.
 - (agregar nuevas decisiones aquí con fecha)

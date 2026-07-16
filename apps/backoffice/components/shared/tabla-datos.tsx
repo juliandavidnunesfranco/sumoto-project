@@ -10,6 +10,7 @@ import {
   EncabezadoColumna,
   type FiltroColumna,
 } from "@/components/shared/encabezado-columna";
+import { InputBusqueda } from "@/components/shared/input-busqueda";
 
 export interface ColumnaDatos<T> {
   titulo: string;
@@ -26,23 +27,61 @@ export function TablaDatos<T>({
   filas,
   claveFila,
   vacio,
+  titulo,
+  busqueda,
+  paramOrden,
+  paramDir,
 }: {
   columnas: ColumnaDatos<T>[];
   filas: T[];
   claveFila: (fila: T) => string;
   /** Qué mostrar sin filas (mensaje o CTA). */
   vacio?: ReactNode;
+  /** Título del bloque (font-headline 3xl), con la búsqueda enfrente. */
+  titulo?: ReactNode;
+  /** Búsqueda enfrentada al título: solo narra searchParams (el fetch
+   *  sigue en el server component, contra la fachada del core). */
+  busqueda?: { param: string; placeholder: string };
+  /** Params de orden en la URL — configurables para que dos tablas en la
+   *  misma página no se pisen (crearTableQuery debe recibir los mismos). */
+  paramOrden?: string;
+  paramDir?: string;
 }) {
+  // El encabezado (título + búsqueda) vive FUERA del early-return de vacío:
+  // si una búsqueda no encuentra filas, el input debe seguir ahí para
+  // poder corregirla o borrarla.
+  const encabezado =
+    titulo || busqueda ? (
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {titulo && <h2 className="font-headline text-3xl">{titulo}</h2>}
+        {busqueda && (
+          <InputBusqueda
+            param={busqueda.param}
+            placeholder={busqueda.placeholder}
+            limpiarParams={["pagina"]}
+            // flexible: encoge para quedar a la altura del título (tope
+            // 320px, piso 160px — por debajo, envuelve a la línea siguiente)
+            className="min-w-40 max-w-80 flex-1"
+          />
+        )}
+      </div>
+    ) : null;
+
   if (filas.length === 0) {
     return (
-      <div className="py-10 text-center text-sm text-muted-foreground">
-        {vacio ?? "Sin resultados con los filtros actuales."}
+      <div>
+        {encabezado}
+        <div className="py-10 text-center text-sm text-muted-foreground">
+          {vacio ?? "Sin resultados con los filtros actuales."}
+        </div>
       </div>
     );
   }
 
   return (
-    <table className="w-full text-sm">
+    <div>
+      {encabezado}
+      <table className={cn("w-full text-sm", encabezado && "mt-4")}>
       <thead className="text-left text-muted-foreground">
         <tr className="border-b border-border">
           {columnas.map((c) => (
@@ -55,6 +94,8 @@ export function TablaDatos<T>({
                 claveOrden={c.claveOrden}
                 filtro={c.filtro}
                 alinear={c.alinear}
+                paramOrden={paramOrden}
+                paramDir={paramDir}
               />
             </th>
           ))}
@@ -77,7 +118,8 @@ export function TablaDatos<T>({
             ))}
           </tr>
         ))}
-      </tbody>
-    </table>
+        </tbody>
+      </table>
+    </div>
   );
 }

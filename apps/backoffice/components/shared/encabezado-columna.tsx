@@ -13,12 +13,17 @@ import { cn } from "@/lib/cn";
 export interface FiltroColumna {
   /** Nombre del searchParam que narra este filtro. */
   param: string;
-  tipo: "opciones" | "rango-fechas";
+  tipo: "opciones" | "rango-fechas" | "texto" | "numero";
   /** Solo para tipo "opciones". */
   opciones?: { valor: string; etiqueta: string }[];
   /** Para "rango-fechas": params desde/hasta (param se ignora). */
   paramDesde?: string;
   paramHasta?: string;
+  /** Para "texto"/"numero": pista dentro del input. */
+  placeholder?: string;
+  /** Para "numero": multiplicador antes de narrar la URL — 100 convierte
+   *  los pesos que escribe el usuario en los centavos de la vista. */
+  factor?: number;
 }
 
 export function EncabezadoColumna({
@@ -26,12 +31,18 @@ export function EncabezadoColumna({
   claveOrden,
   filtro,
   alinear = "izquierda",
+  paramOrden = "orden",
+  paramDir = "dir",
 }: {
   titulo: string;
   /** Columna de la vista por la que ordena (whitelist en reporteria). */
   claveOrden?: string;
   filtro?: FiltroColumna;
   alinear?: "izquierda" | "derecha";
+  /** Params de orden en la URL: configurables para que dos tablas de la
+   *  misma página no se pisen (ej. "penOrden"/"penDir" en cartera). */
+  paramOrden?: string;
+  paramDir?: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -58,8 +69,8 @@ export function EncabezadoColumna({
 
   const interactivo = Boolean(claveOrden || filtro);
 
-  const ordenActual = searchParams.get("orden");
-  const dirActual = searchParams.get("dir") === "asc" ? "asc" : "desc";
+  const ordenActual = searchParams.get(paramOrden);
+  const dirActual = searchParams.get(paramDir) === "asc" ? "asc" : "desc";
   const ordenadaPorMi = claveOrden !== undefined && ordenActual === claveOrden;
 
   const paramsFiltro =
@@ -82,9 +93,10 @@ export function EncabezadoColumna({
 
   function ordenar(dir: "asc" | "desc") {
     if (ordenadaPorMi && dirActual === dir) {
-      narrar({ orden: null, dir: null }); // segundo clic: quitar el orden
+      // segundo clic: quitar el orden
+      narrar({ [paramOrden]: null, [paramDir]: null });
     } else {
-      narrar({ orden: claveOrden!, dir });
+      narrar({ [paramOrden]: claveOrden!, [paramDir]: dir });
     }
   }
 
@@ -110,7 +122,10 @@ export function EncabezadoColumna({
         type="button"
         onClick={() => setAbierto((a) => !a)}
         className={cn(
-          "group inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 font-medium transition-colors hover:bg-secondary hover:text-foreground",
+          // patrón de hover del proyecto: borde inferior negro siempre
+          // visible que se completa a marco entero en hover (transiciona
+          // el COLOR, nunca el ancho — el layout no salta)
+          "group inline-flex items-center gap-1 border border-transparent border-b-black px-1.5 py-0.5 font-medium transition-colors hover:border-black hover:text-foreground",
           (ordenadaPorMi || filtroActivo) && "text-foreground",
         )}
       >
@@ -193,6 +208,23 @@ export function EncabezadoColumna({
             </div>
           )}
 
+          {filtro?.tipo === "texto" && (
+            <CampoFiltroTexto
+              inicial={searchParams.get(filtro.param) ?? ""}
+              placeholder={filtro.placeholder ?? "Contiene…"}
+              onNarrar={(v) => narrar({ [filtro.param]: v || null })}
+            />
+          )}
+
+          {filtro?.tipo === "numero" && (
+            <CampoFiltroNumero
+              inicial={searchParams.get(filtro.param) ?? ""}
+              factor={filtro.factor ?? 1}
+              placeholder={filtro.placeholder ?? "Valor…"}
+              onNarrar={(v) => narrar({ [filtro.param]: v })}
+            />
+          )}
+
           {filtro?.tipo === "rango-fechas" && (
             <div className="space-y-1.5 px-1 py-1">
               <label className="block text-[10px] uppercase text-muted-foreground">
@@ -227,8 +259,8 @@ export function EncabezadoColumna({
                 const limpieza: Record<string, string | null> = {};
                 for (const p of paramsFiltro) limpieza[p] = null;
                 if (ordenadaPorMi) {
-                  limpieza.orden = null;
-                  limpieza.dir = null;
+                  limpieza[paramOrden] = null;
+                  limpieza[paramDir] = null;
                 }
                 narrar(limpieza);
                 setAbierto(false);
@@ -240,6 +272,114 @@ export function EncabezadoColumna({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// Filtro de texto: narra con debounce mientras se escribe (misma cadencia
+// que InputBusqueda) — solo estado local, el fetch sigue en el server.
+function CampoFiltroTexto({
+  inicial,
+  placeholder,
+  onNarrar,
+}: {
+  inicial: string;
+  placeholder: string;
+  onNarrar: (valor: string) => void;
+}) {
+  const [texto, setTexto] = useState(inicial);
+  const temporizador = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function alEscribir(valor: string) {
+    setTexto(valor);
+    if (temporizador.current) clearTimeout(temporizador.current);
+    temporizador.current = setTimeout(() => onNarrar(valor.trim()), 400);
+  }
+
+  return (
+    <div className="px-1 py-1">
+      <input
+        autoFocus
+        value={texto}
+        onChange={(e) => alEscribir(e.target.value)}
+        placeholder={placeholder}
+        className="w-full border border-input bg-secondary px-2 py-1.5 text-xs text-foreground outline-none focus:border-black"
+      />
+    </div>
+  );
+}
+
+// Filtro numérico: operador + valor → narra "op:valor". El factor traduce
+// lo que escribe el usuario (pesos) a la unidad de la vista (centavos):
+// la conversión muere en este borde, la URL ya viaja en centavos.
+const OPERADORES_NUMERO = [
+  { valor: "gte", etiqueta: "≥" },
+  { valor: "gt", etiqueta: ">" },
+  { valor: "eq", etiqueta: "=" },
+  { valor: "lte", etiqueta: "≤" },
+  { valor: "lt", etiqueta: "<" },
+] as const;
+
+function CampoFiltroNumero({
+  inicial,
+  factor,
+  placeholder,
+  onNarrar,
+}: {
+  /** Valor actual en la URL ("gte:120000000") o "". */
+  inicial: string;
+  factor: number;
+  placeholder: string;
+  onNarrar: (valor: string | null) => void;
+}) {
+  const [opInicial, crudoInicial] = inicial.includes(":")
+    ? inicial.split(":", 2)
+    : ["gte", inicial];
+  const [op, setOp] = useState(
+    OPERADORES_NUMERO.some((o) => o.valor === opInicial) ? opInicial : "gte",
+  );
+  const [numero, setNumero] = useState(
+    crudoInicial && Number.isFinite(Number(crudoInicial))
+      ? String(Number(crudoInicial) / factor)
+      : "",
+  );
+
+  function aplicar() {
+    const n = Number(numero);
+    if (numero.trim() === "" || !Number.isFinite(n)) onNarrar(null);
+    else onNarrar(`${op}:${Math.round(n * factor)}`);
+  }
+
+  return (
+    <div className="flex items-center gap-1 px-1 py-1">
+      <select
+        value={op}
+        onChange={(e) => setOp(e.target.value)}
+        aria-label="Operador"
+        className="border border-input bg-secondary px-1 py-1.5 text-xs text-foreground outline-none focus:border-black"
+      >
+        {OPERADORES_NUMERO.map((o) => (
+          <option key={o.valor} value={o.valor}>
+            {o.etiqueta}
+          </option>
+        ))}
+      </select>
+      <input
+        autoFocus
+        type="number"
+        value={numero}
+        onChange={(e) => setNumero(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && aplicar()}
+        placeholder={placeholder}
+        className="w-full min-w-0 border border-input bg-secondary px-2 py-1.5 text-xs text-foreground outline-none focus:border-black"
+      />
+      <button
+        type="button"
+        onClick={aplicar}
+        className="shrink-0 border border-black px-2 py-1.5 text-xs font-medium transition-colors hover:bg-black hover:text-white"
+      >
+        OK
+      </button>
     </div>
   );
 }

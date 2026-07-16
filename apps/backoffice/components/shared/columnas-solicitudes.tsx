@@ -1,15 +1,16 @@
-// Tabla de solicitudes reutilizable (vendedor: "Mis solicitudes"; manager:
-// "Resumen de tienda"; compartido: casos del cliente) — configuración de
-// columnas sobre la TablaDatos genérica: orden y filtro viven en CADA
-// encabezado (mismo formato en todas las vistas). Server component puro,
-// recibe la página ya resuelta contra la fachada del core.
+// Columnas de solicitudes para la TablaDatos genérica (vendedor, manager,
+// casos del cliente, pendientes del financiero): config pura — cada página
+// compone <TablaDatos columnas={columnasSolicitudes(...)}> con su título y
+// búsqueda. CADA columna de datos declara su filtro; el nombre del param es
+// la clave de FiltrosSolicitudes que el core valida contra su mapa de
+// estrategias (texto→ilike saneado, numero→"op:centavos", fechas→rango).
 
 import Link from "next/link";
 import { Eye, Phone, MessageCircle, UserCog } from "lucide-react";
 import type { SolicitudReciente } from "@sumo/core";
 import { pesos } from "@/lib/format";
 import { EstadoBadge } from "@/components/panel/ui";
-import { TablaDatos, type ColumnaDatos } from "@/components/shared/tabla-datos";
+import type { ColumnaDatos } from "@/components/shared/tabla-datos";
 
 const FECHA = new Intl.DateTimeFormat("es-CO", { day: "2-digit", month: "short" });
 
@@ -28,32 +29,43 @@ const OPCIONES_ESTADO = [
   { valor: "desembolsada", etiqueta: "Desembolsada" },
 ];
 
-export function TablaSolicitudes({
-  solicitudes,
+export interface OpcionesColumnasSolicitudes {
+  /** Acción de gestión del manager (por ahora visual: flujo por definir). */
+  conReasignar?: boolean;
+  /** El wizard solo es navegable por vendedor/manager (proxy lo gatea). */
+  conWizard?: boolean;
+  /** Columna "Vendedor" (vista del manager y del financiero). */
+  conVendedor?: boolean;
+  /** Nombres de moto del catálogo (opciones del filtro de su columna). */
+  motos?: string[];
+  /** Vendedores de la tienda (filtro por igualdad); sin lista, el filtro
+   *  cae a texto sobre el nombre (vistas de alcance nacional). */
+  vendedores?: { id: string; nombre: string }[];
+  /** Apagar el rango de fechas donde el período ya está fijo (ej. /hoy). */
+  conFiltroFechas?: boolean;
+  /** Ocultar decisión/estado donde son criterio FIJO de la vista (ej. la
+   *  cola de pendientes del financiero: siempre APROBADO + evaluada). */
+  conDecision?: boolean;
+  conEstado?: boolean;
+  /** Render extra al final (ej. botón Desembolsar del financiero). */
+  accionExtra?: (s: SolicitudReciente) => React.ReactNode;
+}
+
+export function columnasSolicitudes({
   conReasignar = false,
   conWizard = true,
   conVendedor = false,
   motos = [],
   vendedores = [],
   conFiltroFechas = true,
-}: {
-  solicitudes: SolicitudReciente[];
-  /** Acción de gestión del manager (por ahora visual: flujo por definir). */
-  conReasignar?: boolean;
-  /** El wizard solo es navegable por vendedor/manager (proxy lo gatea). */
-  conWizard?: boolean;
-  /** Columna "Vendedor" (vista del manager, estilo v0). */
-  conVendedor?: boolean;
-  /** Nombres de moto del catálogo (opciones del filtro de su columna). */
-  motos?: string[];
-  /** Vendedores de la tienda (filtro de su columna, solo manager). */
-  vendedores?: { id: string; nombre: string }[];
-  /** Apagar el rango de fechas donde el período ya está fijo (ej. /hoy). */
-  conFiltroFechas?: boolean;
-}) {
-  const columnas: ColumnaDatos<SolicitudReciente>[] = [
+  conDecision = true,
+  conEstado = true,
+  accionExtra,
+}: OpcionesColumnasSolicitudes = {}): ColumnaDatos<SolicitudReciente>[] {
+  return [
     {
       titulo: "Solicitud",
+      filtro: { param: "solicitud", tipo: "texto", placeholder: "#id corto…" },
       render: (s) => (
         <span className="font-mono text-xs text-muted-foreground">
           #{s.solicitud_id.slice(0, 8)}
@@ -63,6 +75,7 @@ export function TablaSolicitudes({
     {
       titulo: "Cliente",
       claveOrden: "cliente_nombre",
+      filtro: { param: "cliente", tipo: "texto", placeholder: "Nombre o cédula…" },
       render: (s) => (
         <>
           <p className="font-medium">{s.cliente_nombre ?? "—"}</p>
@@ -100,7 +113,11 @@ export function TablaSolicitudes({
                       etiqueta: v.nombre,
                     })),
                   }
-                : undefined,
+                : {
+                    param: "vendedorNombre",
+                    tipo: "texto" as const,
+                    placeholder: "Nombre…",
+                  },
             render: (s) => (
               <span className="text-muted-foreground">{s.vendedor_nombre ?? "—"}</span>
             ),
@@ -110,30 +127,48 @@ export function TablaSolicitudes({
     {
       titulo: "Valor moto",
       claveOrden: "valor_moto_centavos",
+      filtro: { param: "valor", tipo: "numero", factor: 100, placeholder: "Pesos…" },
       render: (s) => <span className="tabular-nums">{pesos(s.valor_moto_centavos)}</span>,
     },
     {
       titulo: "Cuota est.",
       claveOrden: "cuota_estimada_centavos",
+      filtro: { param: "cuota", tipo: "numero", factor: 100, placeholder: "Pesos…" },
       render: (s) => (
         <span className="tabular-nums">
           {s.cuota_estimada_centavos ? pesos(s.cuota_estimada_centavos) : "—"}
         </span>
       ),
     },
-    {
-      titulo: "Decisión",
-      claveOrden: "decision_resultado",
-      filtro: { param: "decision", tipo: "opciones", opciones: OPCIONES_DECISION },
-      render: (s) =>
-        s.decision_resultado ? <EstadoBadge estado={s.decision_resultado} /> : "—",
-    },
-    {
-      titulo: "Estado",
-      claveOrden: "estado",
-      filtro: { param: "estado", tipo: "opciones", opciones: OPCIONES_ESTADO },
-      render: (s) => <EstadoBadge estado={s.estado.toUpperCase()} />,
-    },
+    ...(conDecision
+      ? [
+          {
+            titulo: "Decisión",
+            claveOrden: "decision_resultado",
+            filtro: {
+              param: "decision",
+              tipo: "opciones" as const,
+              opciones: OPCIONES_DECISION,
+            },
+            render: (s) =>
+              s.decision_resultado ? <EstadoBadge estado={s.decision_resultado} /> : "—",
+          } satisfies ColumnaDatos<SolicitudReciente>,
+        ]
+      : []),
+    ...(conEstado
+      ? [
+          {
+            titulo: "Estado",
+            claveOrden: "estado",
+            filtro: {
+              param: "estado",
+              tipo: "opciones" as const,
+              opciones: OPCIONES_ESTADO,
+            },
+            render: (s) => <EstadoBadge estado={s.estado.toUpperCase()} />,
+          } satisfies ColumnaDatos<SolicitudReciente>,
+        ]
+      : []),
     {
       titulo: "Fecha",
       claveOrden: "creado_en",
@@ -186,33 +221,9 @@ export function TablaSolicitudes({
               <UserCog className="size-4" />
             </button>
           ) : null}
+          {accionExtra ? accionExtra(s) : null}
         </div>
       ),
     },
   ];
-
-  return (
-    <TablaDatos
-      columnas={columnas}
-      filas={solicitudes}
-      claveFila={(s) => s.solicitud_id}
-      vacio={
-        <>
-          Aún no hay solicitudes.
-          {conWizard ? (
-            <>
-              {" "}
-              <Link
-                href="/solicitudes/nueva"
-                className="font-medium text-primary hover:underline"
-              >
-                Crea la primera
-              </Link>
-              .
-            </>
-          ) : null}
-        </>
-      }
-    />
-  );
 }

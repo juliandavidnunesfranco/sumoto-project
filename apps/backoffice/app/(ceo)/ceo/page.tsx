@@ -1,21 +1,72 @@
 // Vista general ejecutiva (ceo): mismos datos reales de reporteria, con
-// franjas de mora nacional y ranking real de tiendas por cartera.
+// recaudo mensual y ranking de tiendas por cartera en TablaDatos (orden,
+// filtros por columna y búsqueda — mismo formato que el resto de tablas).
 
+import type { CarteraPorTienda } from "@sumo/core";
+import type { FiltrosCarteraTienda } from "@sumo/contracts";
 import { reporteriaService } from "@/lib/core-server";
-import { pesosCompacto } from "@/lib/format";
-import { BarraHorizontal, ColumnasMensuales, Kpi, PageHeader, Tarjeta } from "@/components/panel/ui";
+import { pesos, pesosCompacto } from "@/lib/format";
+import { ColumnasMensuales, Kpi, PageHeader, Tarjeta } from "@/components/panel/ui";
+import { TablaDatos, type ColumnaDatos } from "@/components/shared/tabla-datos";
+import { crearTableQuery } from "@/lib/tabla.query";
 
 export const dynamic = "force-dynamic";
 
-export default async function CeoPage() {
+const COLUMNAS_TIENDAS: ColumnaDatos<CarteraPorTienda>[] = [
+  {
+    titulo: "Tienda",
+    claveOrden: "tienda_nombre",
+    filtro: { param: "tienda", tipo: "texto", placeholder: "Nombre…" },
+    render: (t) => <span className="font-medium">{t.tienda_nombre}</span>,
+  },
+  {
+    titulo: "Créditos",
+    claveOrden: "creditos_activos",
+    filtro: { param: "creditos", tipo: "numero", placeholder: "Cantidad…" },
+    alinear: "derecha",
+    render: (t) => <span className="tabular-nums">{t.creditos_activos}</span>,
+  },
+  {
+    titulo: "Cartera",
+    claveOrden: "capital_total_centavos",
+    filtro: { param: "capital", tipo: "numero", factor: 100, placeholder: "Pesos…" },
+    alinear: "derecha",
+    render: (t) => (
+      <span className="tabular-nums font-semibold">
+        {pesos(t.capital_total_centavos)}
+      </span>
+    ),
+  },
+  {
+    titulo: "Vencida",
+    claveOrden: "capital_vencido_centavos",
+    filtro: { param: "vencido", tipo: "numero", factor: 100, placeholder: "Pesos…" },
+    alinear: "derecha",
+    render: (t) => (
+      <span className="tabular-nums text-amber-500">
+        {pesos(t.capital_vencido_centavos)}
+      </span>
+    ),
+  },
+];
+
+export default async function CeoPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
+  const params = await searchParams;
+  const tableQuery = crearTableQuery<CarteraPorTienda, FiltrosCarteraTienda>(
+    params,
+    COLUMNAS_TIENDAS,
+  );
+
   const svc = reporteriaService();
   const [resumen, porTienda, recaudo] = await Promise.all([
     svc.resumenCartera(),
-    svc.carteraPorTienda(),
+    svc.carteraPorTienda({ query: params.tiendaQuery, ...tableQuery }),
     svc.recaudoMensual(),
   ]);
-
-  const maxTienda = Math.max(...porTienda.map((t) => t.capital_total_centavos), 1);
 
   return (
     <div>
@@ -49,19 +100,15 @@ export default async function CeoPage() {
           </div>
         </Tarjeta>
 
-        <Tarjeta>
-          <h2 className="font-semibold">Cartera por tienda</h2>
-          <div className="mt-4 space-y-3">
-            {porTienda.map((t) => (
-              <BarraHorizontal
-                key={t.tienda_id}
-                etiqueta={t.tienda_nombre.split(" ").slice(-1)[0]}
-                valor={t.capital_total_centavos}
-                max={maxTienda}
-                detalle={`${pesosCompacto(t.capital_total_centavos)} · ${t.creditos_activos} créd.`}
-              />
-            ))}
-          </div>
+        <Tarjeta className="overflow-x-auto">
+          <TablaDatos
+            titulo="Cartera por tienda"
+            busqueda={{ param: "tiendaQuery", placeholder: "Tienda o monto…" }}
+            columnas={COLUMNAS_TIENDAS}
+            filas={porTienda}
+            claveFila={(t) => t.tienda_id}
+            vacio="Sin tiendas con cartera todavía."
+          />
         </Tarjeta>
       </div>
     </div>

@@ -1,34 +1,27 @@
 // "Mis solicitudes" — 100% SSR sobre la fachada de reporteria, paginada.
 // Alcance por ROL: el vendedor ve las que ÉL originó (creado_por); el
-// manager ve las de su tienda. La tabla vive en components/shared/
-// (la comparte el resumen de tienda del manager).
+// manager ve las de su tienda. Orden, búsqueda y filtros POR COLUMNA se
+// narran en la URL; crearTableQuery los recolecta de las mismas columnas
+// que renderiza TablaDatos y el core los aplica con su mapa (whitelist).
 
+import Link from "next/link";
+import type { FiltrosSolicitudes } from "@sumo/contracts";
+import type { SolicitudReciente } from "@sumo/core";
 import { obtenerSesion } from "@/lib/auth";
 import { catalogoService, reporteriaService } from "@/lib/core-server";
-import { diaSiguiente } from "@/lib/format";
 import { PageHeader, Tarjeta } from "@/components/panel/ui";
-import { TablaSolicitudes } from "@/components/shared/tabla-solicitudes";
-import { InputBusqueda } from "@/components/shared/input-busqueda";
+import { TablaDatos } from "@/components/shared/tabla-datos";
+import { columnasSolicitudes } from "@/components/shared/columnas-solicitudes";
 import { SelectorPorPagina } from "@/components/shared/selector-por-pagina";
 import { Paginacion } from "@/components/shared/paginacion";
+import { crearTableQuery } from "@/lib/tabla.query";
 
 export const dynamic = "force-dynamic";
 
 export default async function MisSolicitudes({
   searchParams,
 }: {
-  searchParams: Promise<{
-    pagina?: string;
-    porPagina?: string;
-    solQuery?: string;
-    decision?: string;
-    estado?: string;
-    moto?: string;
-    desde?: string;
-    hasta?: string;
-    orden?: string;
-    dir?: string;
-  }>;
+  searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const params = await searchParams;
   const pagina = Math.max(1, Number(params.pagina) || 1);
@@ -38,38 +31,48 @@ export default async function MisSolicitudes({
 
   const sesion = await obtenerSesion();
 
+  // el catálogo va primero: las columnas necesitan las motos para armar
+  // las opciones de su filtro, y crearTableQuery lee esas columnas
+  const catalogoMotos = sesion?.tiendaId
+    ? await catalogoService().buscarMotos({ pagina: 1, porPagina: 50 })
+    : { items: [], total: 0 };
+
+  const columnas = columnasSolicitudes({
+    motos: catalogoMotos.items.map((m) => m.nombre),
+  });
+  const tableQuery = crearTableQuery<SolicitudReciente, FiltrosSolicitudes>(
+    params,
+    columnas,
+  );
+
   // vendedor → sus propias solicitudes; manager → las de su tienda.
   // Sin tienda asignada = estado anómalo: vacío, nunca alcance nacional.
-  const [{ items: solicitudes, total }, catalogoMotos] = sesion?.tiendaId
-    ? await Promise.all([
-        reporteriaService().solicitudesPaginadas({
-          ...(sesion.rol === "vendedor"
-            ? { creadoPor: sesion.userId }
-            : { tiendaId: sesion.tiendaId }),
-          query: params.solQuery,
-          decision: params.decision,
-          estado: params.estado,
-          moto: params.moto,
-          desdeFecha: params.desde,
-          hastaFecha: params.hasta ? diaSiguiente(params.hasta) : undefined,
-          orden: params.orden,
-          direccion: params.dir === "asc" ? "asc" : "desc",
-          pagina,
-          porPagina,
-        }),
-        catalogoService().buscarMotos({ pagina: 1, porPagina: 50 }),
-      ])
-    : [{ items: [], total: 0 }, { items: [], total: 0 }];
+  const { items: solicitudes, total } = sesion?.tiendaId
+    ? await reporteriaService().solicitudesPaginadas({
+        ...(sesion.rol === "vendedor"
+          ? { creadoPor: sesion.userId }
+          : { tiendaId: sesion.tiendaId }),
+        query: params.solQuery,
+        ...tableQuery,
+        pagina,
+        porPagina,
+      })
+    : { items: [], total: 0 };
 
   function hrefPagina(destino: number): string {
     const qs = new URLSearchParams();
-    for (const clave of ["solQuery", "decision", "estado", "moto", "desde", "hasta", "orden", "dir"] as const) {
-      if (params[clave]) qs.set(clave, params[clave]!);
+    for (const [clave, valor] of Object.entries(params)) {
+      if (valor && clave !== "pagina") qs.set(clave, valor);
     }
     qs.set("porPagina", String(porPagina));
     qs.set("pagina", String(destino));
     return `/solicitudes?${qs.toString()}`;
   }
+
+  // Con criterios activos, cero filas significa "nada matchea" (mensaje
+  // genérico de TablaDatos), no "aún no has creado" (CTA del wizard).
+  const hayCriterios =
+    Boolean(params.solQuery) || Object.keys(tableQuery.filtros).length > 0;
 
   return (
     <div>
@@ -83,20 +86,27 @@ export default async function MisSolicitudes({
       />
 
       <Tarjeta className="overflow-x-auto">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <InputBusqueda
-            param="solQuery"
-            placeholder="Cliente, cédula, moto o #id…"
-            limpiarParams={["pagina"]}
-            className="w-64 sm:w-80"
-          />
-        </div>
-        <div className="mt-4">
-          <TablaSolicitudes
-            solicitudes={solicitudes}
-            motos={catalogoMotos.items.map((m) => m.nombre)}
-          />
-        </div>
+        <TablaDatos
+          titulo="Solicitudes"
+          busqueda={{ param: "solQuery", placeholder: "Cliente, cédula, moto o #id…" }}
+          columnas={columnas}
+          filas={solicitudes}
+          claveFila={(s) => s.solicitud_id}
+          vacio={
+            hayCriterios ? undefined : (
+              <>
+                Aún no hay solicitudes.{" "}
+                <Link
+                  href="/solicitudes/nueva"
+                  className="font-medium text-primary hover:underline"
+                >
+                  Crea la primera
+                </Link>
+                .
+              </>
+            )
+          }
+        />
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
           <SelectorPorPagina param="porPagina" resetParam="pagina" />
           <Paginacion
