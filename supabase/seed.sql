@@ -4,10 +4,14 @@
 -- y 18 créditos con historias variadas: al día, mora 30, 60 y 90+.
 -- =============================================================================
 
+-- 0. Empresa (SUMOTO es la empresa #1 del sistema, dogfooding) --------------
+insert into public.empresas (id, nombre, slug, plan) values
+  ('d0000000-0000-4000-8000-000000000001', 'SUMOTO', 'sumoto', 'demo');
+
 -- 1. Tiendas ------------------------------------------------------------------
-insert into public.tiendas (id, nombre, ciudad, meta_colocacion_centavos) values
-  ('11111111-1111-4111-8111-111111111111', 'SUMOTO Bogotá Norte', 'Bogotá', 2500000000),
-  ('22222222-2222-4222-8222-222222222222', 'SUMOTO Medellín Centro', 'Medellín', 2000000000);
+insert into public.tiendas (id, nombre, ciudad, meta_colocacion_centavos, empresa_id) values
+  ('11111111-1111-4111-8111-111111111111', 'SUMOTO Bogotá Norte', 'Bogotá', 2500000000, 'd0000000-0000-4000-8000-000000000001'),
+  ('22222222-2222-4222-8222-222222222222', 'SUMOTO Medellín Centro', 'Medellín', 2000000000, 'd0000000-0000-4000-8000-000000000001');
 
 -- 2. Usuarios por rol (auth) + perfiles ----------------------------------------
 do $$
@@ -43,9 +47,10 @@ begin
                          'email_verified', true),
       'email', now(), now(), now()
     );
-    insert into public.perfiles (user_id, rol, tienda_id, nombre)
+    insert into public.perfiles (user_id, rol, tienda_id, nombre, empresa_id)
     values ((u->>'id')::uuid, (u->>'rol')::public.rol_usuario,
-            (u->>'tienda')::uuid, u->>'nombre');
+            (u->>'tienda')::uuid, u->>'nombre',
+            'd0000000-0000-4000-8000-000000000001');
   end loop;
 end $$;
 
