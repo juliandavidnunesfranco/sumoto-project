@@ -18,6 +18,7 @@ export interface FilaCliente {
   ingresos_declarados_centavos: number | null;
   fuente_identidad: FuenteDeDatos;
   tienda_id: string;
+  empresa_id: string;
 }
 
 export function aCliente(fila: FilaCliente): Cliente {
@@ -36,6 +37,7 @@ export function aCliente(fila: FilaCliente): Cliente {
     ingresosDeclaradosCentavos: fila.ingresos_declarados_centavos ?? undefined,
     fuenteIdentidad: fila.fuente_identidad,
     tiendaId: fila.tienda_id,
+    empresaId: fila.empresa_id,
   };
 }
 
@@ -54,5 +56,6 @@ export function aFilaNueva(cliente: Cliente): Omit<FilaCliente, "id"> {
     ingresos_declarados_centavos: cliente.ingresosDeclaradosCentavos ?? null,
     fuente_identidad: cliente.fuenteIdentidad,
     tienda_id: cliente.tiendaId,
+    empresa_id: cliente.empresaId,
   };
 }

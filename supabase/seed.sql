@@ -128,12 +128,13 @@ begin
     -- cliente
     insert into clientes.clientes
       (cedula, nombres, apellidos, fecha_nacimiento, telefono, ciudad,
-       ingresos_declarados_centavos, fuente_identidad, tienda_id)
+       ingresos_declarados_centavos, fuente_identidad, tienda_id, empresa_id)
     values
       ((1000000000 + i)::text, nombres[i], apellidos[i] || ' ' || apellidos[1 + (i % 18)],
        ('1975-01-15'::date + (i * 400 || ' days')::interval)::date,
        '31055512' || lpad(i::text, 2, '0'), case when i % 2 = 0 then 'Bogotá' else 'Medellín' end,
-       ingresos, case when i % 3 = 0 then 'escaner' else 'entrada_manual' end, tienda)
+       ingresos, case when i % 3 = 0 then 'escaner' else 'entrada_manual' end, tienda,
+       'd0000000-0000-4000-8000-000000000001')
     returning id into v_cliente;
 
     -- moto financiada (cualquiera del catálogo ya sembrado arriba)

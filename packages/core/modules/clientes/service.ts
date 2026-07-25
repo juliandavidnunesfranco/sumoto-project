@@ -17,15 +17,15 @@ export class ClientesService {
     return this.casoRegistrar.ejecutar(comando);
   }
 
-  buscarPorCedula(cedula: string) {
-    return this.repositorio.buscarPorCedula(cedula);
+  buscarPorCedula(cedula: string, empresaId: string) {
+    return this.repositorio.buscarPorCedula(cedula, empresaId);
   }
 
-  buscarPorId(id: string) {
-    return this.repositorio.buscarPorId(id);
+  buscarPorId(id: string, empresaId: string) {
+    return this.repositorio.buscarPorId(id, empresaId);
   }
 
-  buscarClientes(query: string, tiendaId?: string) {
-    return this.repositorio.buscar(query, tiendaId);
+  buscarClientes(query: string, empresaId: string, tiendaId?: string) {
+    return this.repositorio.buscar(query, empresaId, tiendaId);
   }
 }

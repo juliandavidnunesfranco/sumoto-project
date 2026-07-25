@@ -19,6 +19,7 @@ const REGISTRO_OK: DatosRegistro = {
   ingresosDeclaradosCentavos: 250_000_000, // $2.500.000 COP
   fuenteIdentidad: "entrada_manual",
   tiendaId: "tienda-1",
+  empresaId: "d0000000-0000-4000-8000-000000000001",
 };
 
 describe("esCedulaValida", () => {
@@ -105,5 +106,17 @@ describe("crearCliente", () => {
   it("devuelve fallo con las violaciones cuando no", () => {
     const resultado = crearCliente({ ...DATOS_OK, cedula: "x" }, REGISTRO_OK);
     expect(resultado.ok).toBe(false);
+  });
+
+  it("rechaza el registro sin empresaId", () => {
+    const resultado = crearCliente(DATOS_OK, {
+      fuenteIdentidad: "entrada_manual",
+      tiendaId: "11111111-1111-4111-8111-111111111111",
+      empresaId: "",
+    });
+    expect(resultado.ok).toBe(false);
+    if (!resultado.ok) {
+      expect(resultado.error).toContain("la empresa que registra es obligatoria");
+    }
   });
 });

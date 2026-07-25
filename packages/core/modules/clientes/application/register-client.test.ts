@@ -18,8 +18,16 @@ class RepositorioEnMemoria implements RepositorioClientes {
     return guardado;
   }
 
-  async buscarPorCedula(cedula: string): Promise<Cliente | null> {
+  async buscarPorCedula(cedula: string, _empresaId: string): Promise<Cliente | null> {
     return this.clientes.find((c) => c.cedula === cedula) ?? null;
+  }
+
+  async buscarPorId(id: string, _empresaId: string): Promise<Cliente | null> {
+    return this.clientes.find((c) => c.id === id) ?? null;
+  }
+
+  async buscar(_query: string, _empresaId: string, _tiendaId?: string): Promise<Cliente[]> {
+    return this.clientes;
   }
 }
 
@@ -55,6 +63,7 @@ describe("RegistrarCliente", () => {
       fuente: "escaner",
       entradaCruda: { codigo: "1012345678" },
       tiendaId: "tienda-1",
+      empresaId: "d0000000-0000-4000-8000-000000000001",
     });
 
     expect(resultado.ok).toBe(true);
@@ -74,6 +83,7 @@ describe("RegistrarCliente", () => {
       fuente: "escaner" as const,
       entradaCruda: { codigo: "1012345678" },
       tiendaId: "tienda-1",
+      empresaId: "d0000000-0000-4000-8000-000000000001",
     };
 
     const primero = await casoDeUso.ejecutar(comando);
@@ -95,6 +105,7 @@ describe("RegistrarCliente", () => {
       fuente: "escaner",
       entradaCruda: { codigo: "xxx" },
       tiendaId: "tienda-1",
+      empresaId: "d0000000-0000-4000-8000-000000000001",
     });
 
     expect(resultado.ok).toBe(false);
@@ -110,6 +121,7 @@ describe("RegistrarCliente", () => {
       fuente: "entrada_manual",
       entradaCruda: {},
       tiendaId: "tienda-1",
+      empresaId: "d0000000-0000-4000-8000-000000000001",
     });
 
     expect(resultado.ok).toBe(false);

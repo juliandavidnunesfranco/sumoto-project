@@ -18,12 +18,14 @@ export interface Cliente {
   ingresosDeclaradosCentavos?: number; // dinero: entero en centavos, nunca float
   fuenteIdentidad: FuenteDeDatos;
   tiendaId: string;
+  empresaId: string;
 }
 
 export interface DatosRegistro {
   ingresosDeclaradosCentavos?: number;
   fuenteIdentidad: FuenteDeDatos;
   tiendaId: string;
+  empresaId: string;
 }
 
 // Fábrica de la entidad: la ÚNICA forma de crear un Cliente en el dominio.
@@ -51,6 +53,7 @@ export function crearCliente(
     ingresosDeclaradosCentavos: registro.ingresosDeclaradosCentavos,
     fuenteIdentidad: registro.fuenteIdentidad,
     tiendaId: registro.tiendaId,
+    empresaId: registro.empresaId,
   });
 }
 
@@ -112,6 +115,9 @@ export function validarParaRegistro(
   }
   if (registro.tiendaId.trim() === "") {
     violaciones.push("la tienda que registra es obligatoria");
+  }
+  if (registro.empresaId.trim() === "") {
+    violaciones.push("la empresa que registra es obligatoria");
   }
 
   return violaciones;

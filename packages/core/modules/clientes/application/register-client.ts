@@ -13,6 +13,7 @@ export interface ComandoRegistrarCliente {
   entradaCruda: unknown; // payload tal como llega de afuera; lo traduce la fuente
   ingresosDeclaradosCentavos?: number;
   tiendaId: string;
+  empresaId: string;
 }
 
 export class RegistrarCliente {
@@ -35,10 +36,13 @@ export class RegistrarCliente {
       return fallo([captura.error]);
     }
 
-    // Registro idempotente por cédula: si ya existe, se devuelve el existente
-    // (el vendedor puede reintentar sin generar duplicados)
+    // Idempotencia por cédula ACOTADA a la empresa: dos empresas distintas
+    // pueden tener cada una un cliente con la misma cédula (personas
+    // distintas registradas por negocios distintos, o el mismo cliente
+    // real siendo sujeto de crédito en dos empresas independientes).
     const existente = await this.repositorio.buscarPorCedula(
       captura.valor.cedula,
+      comando.empresaId,
     );
     if (existente) {
       return exito(existente);
@@ -48,6 +52,7 @@ export class RegistrarCliente {
       ingresosDeclaradosCentavos: comando.ingresosDeclaradosCentavos,
       fuenteIdentidad: fuente.nombre,
       tiendaId: comando.tiendaId,
+      empresaId: comando.empresaId,
     });
     if (!creacion.ok) {
       return creacion;
