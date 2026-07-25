@@ -9,6 +9,7 @@ export interface Perfil {
   nombre: string;
   rol: Rol;
   tiendaId: string | null;
+  empresaId: string;
 }
 
 export interface RepositorioPerfiles {

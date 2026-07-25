@@ -6,6 +6,7 @@ interface FilaPerfil {
   nombre: string;
   rol: Rol;
   tienda_id: string | null;
+  empresa_id: string;
 }
 
 export class RepositorioPerfilesSupabase implements RepositorioPerfiles {
@@ -14,7 +15,7 @@ export class RepositorioPerfilesSupabase implements RepositorioPerfiles {
   async buscarPorUsuario(userId: string): Promise<Perfil | null> {
     const { data, error } = await this.supabase
       .from("perfiles")
-      .select("user_id, nombre, rol, tienda_id")
+      .select("user_id, nombre, rol, tienda_id, empresa_id")
       .eq("user_id", userId)
       .maybeSingle<FilaPerfil>();
     if (error) throw new Error(`[seguridad] error leyendo perfil: ${error.message}`);
@@ -24,6 +25,7 @@ export class RepositorioPerfilesSupabase implements RepositorioPerfiles {
           nombre: data.nombre,
           rol: data.rol,
           tiendaId: data.tienda_id,
+          empresaId: data.empresa_id,
         }
       : null;
   }
