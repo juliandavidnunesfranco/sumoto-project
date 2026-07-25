@@ -38,6 +38,20 @@ export class RepositorioClientesSupabase implements RepositorioClientes {
     return data ? aCliente(data) : null;
   }
 
+  async buscarPorId(id: string): Promise<Cliente | null> {
+    const { data, error } = await this.supabase
+      .schema("clientes")
+      .from("clientes")
+      .select()
+      .eq("id", id)
+      .maybeSingle<FilaCliente>();
+
+    if (error) {
+      throw new Error(`[clientes] error buscando por id: ${error.message}`);
+    }
+    return data ? aCliente(data) : null;
+  }
+
   async buscar(query: string, tiendaId?: string): Promise<Cliente[]> {
     // Sanea metacaracteres del filtro PostgREST (, ( ) * \ . " ') antes de
     // interpolar: sin esto un término como `x,tienda_id.eq.otra-tienda` podría

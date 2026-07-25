@@ -24,9 +24,22 @@ export {
   type MotorDecision,
 } from "./domain/decision-engine";
 export type {
+  AlmacenDocumentos,
+  DocumentoExpediente,
+  MarcaVerificacion,
   RepositorioProductos,
   RepositorioSolicitudes,
+  RepositorioVerificaciones,
 } from "./domain/repositories";
+export {
+  CHECKLIST_DESEMBOLSO,
+  esCodigoDeChecklist,
+  evaluarVerificacion,
+  PUNTAJE_MINIMO_VERIFICACION,
+  type EstadoVerificacion,
+  type ItemVerificacion,
+} from "./domain/verificacion";
+export { type ComandoMarcarVerificacion } from "./application/verify-disbursement";
 export {
   EvaluarSolicitud,
   type ComandoEvaluarSolicitud,
@@ -35,6 +48,7 @@ export {
 export {
   OriginacionService,
   type ComandoSimularDecision,
+  type ItemVerificado,
   type SolicitudParaDesembolso,
 } from "./service";
 export { moduloOriginacion } from "./module";

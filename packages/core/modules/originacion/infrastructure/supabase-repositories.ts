@@ -4,8 +4,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Decision } from "../domain/decision";
 import type { Solicitud } from "../domain/loan-application";
 import type {
+  AlmacenDocumentos,
+  DocumentoExpediente,
+  MarcaVerificacion,
   RepositorioProductos,
   RepositorioSolicitudes,
+  RepositorioVerificaciones,
 } from "../domain/repositories";
 import type { ProductoCredito } from "../domain/credit-product";
 import {
@@ -56,11 +60,14 @@ export class RepositorioProductosSupabase implements RepositorioProductos {
   }
 
   async listarActivos() {
+    // orden estable por antigüedad: el submenú del sidebar y el select del
+    // wizard muestran siempre la misma secuencia
     const { data, error } = await this.supabase
       .schema("originacion")
       .from("productos_credito")
       .select()
       .eq("activo", true)
+      .order("creado_en", { ascending: true })
       .returns<FilaProducto[]>();
     if (error) throw new Error(`[originacion] error listando productos: ${error.message}`);
     return (data ?? []).map(aProducto);
@@ -147,6 +154,19 @@ export class RepositorioSolicitudesSupabase implements RepositorioSolicitudes {
     if (error) throw new Error(`[originacion] error eliminando decisiones: ${error.message}`);
   }
 
+  async reporteDeRiesgo(solicitudId: string): Promise<unknown | null> {
+    const { data, error } = await this.supabase
+      .schema("originacion")
+      .from("decisiones")
+      .select("reporte_riesgo")
+      .eq("solicitud_id", solicitudId)
+      .order("evaluado_en", { ascending: false })
+      .limit(1)
+      .maybeSingle<{ reporte_riesgo: unknown }>();
+    if (error) throw new Error(`[originacion] error leyendo reporte de riesgo: ${error.message}`);
+    return data?.reporte_riesgo ?? null;
+  }
+
   async guardarDecision(
     solicitudId: string,
     decision: Decision,
@@ -164,5 +184,98 @@ export class RepositorioSolicitudesSupabase implements RepositorioSolicitudes {
         cuota_estimada_centavos: decision.cuotaEstimadaCentavos,
       });
     if (error) throw new Error(`[originacion] error guardando decisión: ${error.message}`);
+  }
+}
+
+export class RepositorioVerificacionesSupabase implements RepositorioVerificaciones {
+  constructor(private readonly supabase: SupabaseClient) {}
+
+  async marcar(
+    solicitudId: string,
+    itemCodigo: string,
+    marcado: boolean,
+    marcadoPor: string,
+  ): Promise<void> {
+    const { error } = await this.supabase
+      .schema("originacion")
+      .from("verificaciones")
+      .upsert(
+        {
+          solicitud_id: solicitudId,
+          item_codigo: itemCodigo,
+          marcado,
+          marcado_por: marcadoPor,
+          marcado_en: new Date().toISOString(),
+        },
+        { onConflict: "solicitud_id,item_codigo" },
+      );
+    if (error) throw new Error(`[originacion] error marcando verificación: ${error.message}`);
+  }
+
+  async marcasDe(solicitudId: string): Promise<MarcaVerificacion[]> {
+    const { data, error } = await this.supabase
+      .schema("originacion")
+      .from("verificaciones")
+      .select("item_codigo, marcado, marcado_por, marcado_en")
+      .eq("solicitud_id", solicitudId)
+      .returns<
+        { item_codigo: string; marcado: boolean; marcado_por: string; marcado_en: string }[]
+      >();
+    if (error) throw new Error(`[originacion] error leyendo verificaciones: ${error.message}`);
+    return (data ?? []).map((f) => ({
+      itemCodigo: f.item_codigo,
+      marcado: f.marcado,
+      marcadoPor: f.marcado_por,
+      marcadoEn: f.marcado_en,
+    }));
+  }
+}
+
+// Documentos del expediente en Supabase Storage (bucket PRIVADO `documentos`,
+// un prefijo por solicitud). El formato externo muere aquí: hacia el dominio
+// solo viajan nombres, bytes y mime.
+const BUCKET_DOCUMENTOS = "documentos";
+
+export class AlmacenDocumentosSupabase implements AlmacenDocumentos {
+  constructor(private readonly supabase: SupabaseClient) {}
+
+  async guardar(
+    solicitudId: string,
+    nombre: string,
+    contenido: ArrayBuffer,
+    mime: string,
+  ): Promise<void> {
+    const { error } = await this.supabase.storage
+      .from(BUCKET_DOCUMENTOS)
+      .upload(`${solicitudId}/${nombre}`, contenido, { contentType: mime, upsert: true });
+    if (error) throw new Error(`[originacion] error subiendo documento: ${error.message}`);
+  }
+
+  async listar(solicitudId: string): Promise<DocumentoExpediente[]> {
+    const { data, error } = await this.supabase.storage
+      .from(BUCKET_DOCUMENTOS)
+      .list(solicitudId, { sortBy: { column: "created_at", order: "asc" } });
+    if (error) throw new Error(`[originacion] error listando documentos: ${error.message}`);
+    return (data ?? [])
+      .filter((o) => o.name !== ".emptyFolderPlaceholder")
+      .map((o) => ({
+        nombre: o.name,
+        tamanoBytes: (o.metadata as { size?: number } | null)?.size ?? 0,
+        creadoEn: o.created_at ?? "",
+      }));
+  }
+
+  async descargar(
+    solicitudId: string,
+    nombre: string,
+  ): Promise<{ contenido: ArrayBuffer; mime: string } | null> {
+    const { data, error } = await this.supabase.storage
+      .from(BUCKET_DOCUMENTOS)
+      .download(`${solicitudId}/${nombre}`);
+    if (error) {
+      if (error.message.toLowerCase().includes("not found")) return null;
+      throw new Error(`[originacion] error descargando documento: ${error.message}`);
+    }
+    return { contenido: await data.arrayBuffer(), mime: data.type };
   }
 }

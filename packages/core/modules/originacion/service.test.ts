@@ -3,8 +3,10 @@ import type { Decision } from "./domain/decision";
 import type { ProductoCredito } from "./domain/credit-product";
 import type { Solicitud } from "./domain/loan-application";
 import type {
+  AlmacenDocumentos,
   RepositorioProductos,
   RepositorioSolicitudes,
+  RepositorioVerificaciones,
 } from "./domain/repositories";
 import { OriginacionService } from "./service";
 
@@ -52,12 +54,26 @@ function armarServicio(opciones: {
     buscarPorId: async () => opciones.producto ?? null,
   } as unknown as RepositorioProductos;
 
+  // expediente vacío por defecto: paraDesembolso ahora también evalúa la
+  // verificación pre-desembolso (sin marcas = incompleta)
+  const verificaciones = {
+    marcar: async () => undefined,
+    marcasDe: async () => [],
+  } as unknown as RepositorioVerificaciones;
+  const documentos = {
+    guardar: async () => undefined,
+    listar: async () => [],
+    descargar: async () => null,
+  } as unknown as AlmacenDocumentos;
+
   return new OriginacionService(
     null as never, // casoEvaluar: no participa en paraDesembolso
     productos,
     solicitudes,
     null as never, // consultorRiesgo
     null as never, // motor
+    verificaciones,
+    documentos,
   );
 }
 
@@ -80,6 +96,11 @@ describe("OriginacionService.paraDesembolso", () => {
       tasaEA: 0.245,
       aprobada: true,
       estado: "evaluada",
+      // expediente sin marcas: la verificación llega evaluada e incompleta
+      verificacionCompleta: false,
+      verificacionRazones: expect.arrayContaining([
+        expect.stringContaining("falta obligatorio"),
+      ]),
     });
   });
 

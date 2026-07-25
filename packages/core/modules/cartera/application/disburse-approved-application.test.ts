@@ -18,6 +18,8 @@ const APROBADA: SolicitudParaDesembolso = {
   tasaEA: 0.245,
   aprobada: true,
   estado: "evaluada",
+  verificacionCompleta: true,
+  verificacionRazones: ["completitud 100/100 puntos — cumple el mínimo"],
 };
 
 function armar(solicitud: SolicitudParaDesembolso | null) {
@@ -78,6 +80,26 @@ describe("DesembolsarSolicitudAprobada", () => {
 
     expect(resultado.ok).toBe(false);
     if (!resultado.ok) expect(resultado.error).toMatch(/APROBADA/i);
+    expect(desembolsar).not.toHaveBeenCalled();
+  });
+
+  it("rechaza cuando el expediente de verificación está incompleto, con razones", async () => {
+    const { caso, desembolsar } = armar({
+      ...APROBADA,
+      verificacionCompleta: false,
+      verificacionRazones: ["falta obligatorio: Pagaré y carta de instrucciones"],
+    });
+
+    const resultado = await caso.ejecutar({
+      solicitudId: "sol-1",
+      fechaDesembolso: "2026-07-15",
+    });
+
+    expect(resultado.ok).toBe(false);
+    if (!resultado.ok) {
+      expect(resultado.error).toMatch(/expediente/i);
+      expect(resultado.error).toMatch(/Pagaré/);
+    }
     expect(desembolsar).not.toHaveBeenCalled();
   });
 

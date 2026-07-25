@@ -9,6 +9,16 @@ import {
   ActualizarReglasDecision,
   CrearProductoCredito,
 } from "./application/manage-credit-product";
+import {
+  MarcarItemVerificacion,
+  type ComandoMarcarVerificacion,
+} from "./application/verify-disbursement";
+import {
+  CHECKLIST_DESEMBOLSO,
+  evaluarVerificacion,
+  type EstadoVerificacion,
+  type ItemVerificacion,
+} from "./domain/verificacion";
 import type {
   DatosProducto,
   ProductoCredito,
@@ -20,7 +30,13 @@ import {
   montoAFinanciarCentavos,
   type EstadoSolicitud,
 } from "./domain/loan-application";
-import type { RepositorioProductos, RepositorioSolicitudes } from "./domain/repositories";
+import type {
+  AlmacenDocumentos,
+  MarcaVerificacion,
+  RepositorioProductos,
+  RepositorioSolicitudes,
+  RepositorioVerificaciones,
+} from "./domain/repositories";
 import type { ConsultorRiesgo } from "./domain/risk-advisor";
 import type { ReporteRiesgo } from "./domain/risk-report";
 
@@ -34,6 +50,17 @@ export interface SolicitudParaDesembolso {
   tasaEA: number;
   aprobada: boolean;
   estado: EstadoSolicitud;
+  // etapa de otorgamiento (SARC): el expediente debe estar completo para
+  // desembolsar; las razones viajan para explicar el bloqueo
+  verificacionCompleta: boolean;
+  verificacionRazones: string[];
+}
+
+/** Ítem del checklist con su marca vigente (para pintar el expediente). */
+export interface ItemVerificado extends ItemVerificacion {
+  marcado: boolean;
+  marcadoPor?: string;
+  marcadoEn?: string;
 }
 
 export interface ComandoSimularDecision {
@@ -49,6 +76,7 @@ export interface ComandoSimularDecision {
 export class OriginacionService {
   private readonly casoCrearProducto: CrearProductoCredito;
   private readonly casoActualizarReglas: ActualizarReglasDecision;
+  private readonly casoMarcarVerificacion: MarcarItemVerificacion;
 
   constructor(
     private readonly casoEvaluar: EvaluarSolicitud,
@@ -56,9 +84,12 @@ export class OriginacionService {
     private readonly solicitudes: RepositorioSolicitudes,
     private readonly consultorRiesgo: ConsultorRiesgo,
     private readonly motor: MotorDecision,
+    private readonly verificaciones: RepositorioVerificaciones,
+    private readonly documentos: AlmacenDocumentos,
   ) {
     this.casoCrearProducto = new CrearProductoCredito(productos);
     this.casoActualizarReglas = new ActualizarReglasDecision(productos);
+    this.casoMarcarVerificacion = new MarcarItemVerificacion(solicitudes, verificaciones);
   }
 
   evaluarSolicitud(comando: ComandoEvaluarSolicitud) {
@@ -98,6 +129,7 @@ export class OriginacionService {
     if (!par) return null;
     const producto = await this.productos.buscarPorId(par.solicitud.productoId);
     if (!producto) return null;
+    const verificacion = await this.estadoVerificacion(solicitudId);
 
     return {
       solicitudId,
@@ -108,7 +140,72 @@ export class OriginacionService {
       tasaEA: producto.tasaEA,
       aprobada: par.decision.resultado === "APROBADO",
       estado: par.solicitud.estado,
+      verificacionCompleta: verificacion.completa,
+      verificacionRazones: verificacion.razones,
     };
+  }
+
+  // ---------------------------------------------------------------------
+  // Expediente pre-desembolso (etapa de otorgamiento)
+  // ---------------------------------------------------------------------
+
+  marcarVerificacion(comando: ComandoMarcarVerificacion): Promise<Resultado<void, string>> {
+    return this.casoMarcarVerificacion.ejecutar(comando);
+  }
+
+  /** Checklist completo con las marcas vigentes + estado evaluado. */
+  async verificacionDe(solicitudId: string): Promise<{
+    items: ItemVerificado[];
+    estado: EstadoVerificacion;
+  }> {
+    const marcas = await this.verificaciones.marcasDe(solicitudId);
+    const porCodigo = new Map<string, MarcaVerificacion>(
+      marcas.map((m) => [m.itemCodigo, m]),
+    );
+    const items: ItemVerificado[] = CHECKLIST_DESEMBOLSO.map((item) => {
+      const marca = porCodigo.get(item.codigo);
+      return {
+        ...item,
+        marcado: marca?.marcado ?? false,
+        marcadoPor: marca?.marcadoPor,
+        marcadoEn: marca?.marcadoEn,
+      };
+    });
+    return {
+      items,
+      estado: evaluarVerificacion(items.filter((i) => i.marcado).map((i) => i.codigo)),
+    };
+  }
+
+  private async estadoVerificacion(solicitudId: string): Promise<EstadoVerificacion> {
+    const marcas = await this.verificaciones.marcasDe(solicitudId);
+    return evaluarVerificacion(
+      marcas.filter((m) => m.marcado).map((m) => m.itemCodigo),
+    );
+  }
+
+  /** Reporte del buró tal como se archivó con la decisión (soporte SFC). */
+  reporteDeRiesgoArchivado(solicitudId: string): Promise<unknown | null> {
+    return this.solicitudes.reporteDeRiesgo(solicitudId);
+  }
+
+  // Documentos aportados por el solicitante (bucket privado tras el core:
+  // la app jamás toca Storage directo — regla de conexión 1).
+  subirDocumento(
+    solicitudId: string,
+    nombre: string,
+    contenido: ArrayBuffer,
+    mime: string,
+  ): Promise<void> {
+    return this.documentos.guardar(solicitudId, nombre, contenido, mime);
+  }
+
+  listarDocumentos(solicitudId: string) {
+    return this.documentos.listar(solicitudId);
+  }
+
+  descargarDocumento(solicitudId: string, nombre: string) {
+    return this.documentos.descargar(solicitudId, nombre);
   }
 
   async solicitudEvaluada(solicitudId: string) {

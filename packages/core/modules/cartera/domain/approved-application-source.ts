@@ -14,6 +14,10 @@ export interface SolicitudParaDesembolso {
   tasaEA: number;
   aprobada: boolean;
   estado: "pendiente" | "evaluada" | "desembolsada";
+  // etapa de otorgamiento (SARC): expediente completo o no, con razones —
+  // la regla vive en originación, aquí llega ya evaluada.
+  verificacionCompleta: boolean;
+  verificacionRazones: string[];
 }
 
 export interface FuenteSolicitudesAprobadas {

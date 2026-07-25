@@ -9,8 +9,10 @@ import { ExperianMock } from "../../integrations/experian/index";
 import { EvaluarSolicitud } from "./application/evaluate-application";
 import type { ConsultorRiesgo } from "./domain/risk-advisor";
 import {
+  AlmacenDocumentosSupabase,
   RepositorioProductosSupabase,
   RepositorioSolicitudesSupabase,
+  RepositorioVerificacionesSupabase,
 } from "./infrastructure/supabase-repositories";
 import { MotorDecisionV1 } from "./domain/decision-engine";
 import { OriginacionService } from "./service";
@@ -42,6 +44,8 @@ export const moduloOriginacion: ModuleDefinition = {
         solicitudes,
         consultorRiesgo,
         motor,
+        new RepositorioVerificacionesSupabase(supabase),
+        new AlmacenDocumentosSupabase(supabase),
       ),
     );
   },

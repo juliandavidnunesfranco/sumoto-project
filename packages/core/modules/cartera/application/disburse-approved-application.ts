@@ -43,6 +43,14 @@ export class DesembolsarSolicitudAprobada {
     if (!solicitud.aprobada) {
       return fallo("solo se desembolsan solicitudes APROBADAS por el motor");
     }
+    // etapa de otorgamiento (SARC): sin expediente completo NO hay
+    // desembolso — la UI puede deshabilitar el botón, pero la puerta real
+    // es esta (dos puertas, como el resto del sistema)
+    if (!solicitud.verificacionCompleta) {
+      return fallo(
+        `el expediente de verificación está incompleto: ${solicitud.verificacionRazones.join("; ")}`,
+      );
+    }
 
     return this.casoDesembolsar.ejecutar({
       solicitudId: solicitud.solicitudId,
