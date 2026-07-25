@@ -11,6 +11,7 @@ import { pesos, pesosCompacto } from "@/lib/format";
 import {
   BarraHorizontal,
   ColumnasMensuales,
+  FilaKpis,
   Kpi,
   PageHeader,
   Tarjeta,
@@ -123,12 +124,12 @@ export default async function TiendaPage({
         }
       />
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <FilaKpis>
         <Kpi titulo="Colocación · último año" valor={pesosCompacto(colocacionAnio)} acento="primary" />
         <Kpi titulo="Solicitudes" valor={String(totalSolicitudes)} />
         <Kpi titulo="Aprobadas" valor={String(totalAprobadas)} acento="emerald" />
         <Kpi titulo="Tasa de aprobación" valor={`${tasa}%`} />
-      </div>
+      </FilaKpis>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <Tarjeta>

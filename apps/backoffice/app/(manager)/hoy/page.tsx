@@ -8,7 +8,8 @@ import type { SolicitudReciente } from "@sumo/core";
 import { obtenerSesion } from "@/lib/auth";
 import { agendaService, catalogoService, reporteriaService } from "@/lib/core-server";
 import { diaSiguiente, pesosCompacto } from "@/lib/format";
-import { Kpi, PageHeader, Tarjeta } from "@/components/panel/ui";
+import { FilaKpis,
+  Kpi, PageHeader, Tarjeta } from "@/components/panel/ui";
 import { TablaDatos } from "@/components/shared/tabla-datos";
 import { columnasSolicitudes } from "@/components/shared/columnas-solicitudes";
 import { crearTableQuery } from "@/lib/tabla.query";
@@ -113,12 +114,12 @@ export default async function HoyPage({
         </p>
       )}
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <FilaKpis>
         <Kpi titulo="Solicitudes de hoy" valor={String(total)} acento="primary" />
         <Kpi titulo="Aprobadas hoy" valor={String(aprobadasHoy)} acento="emerald" />
         <Kpi titulo="Colocación de hoy" valor={pesosCompacto(colocacionHoy)} />
         <Kpi titulo="Citas de hoy" valor={String(citas.length)} />
-      </div>
+      </FilaKpis>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(280px,1fr)_2fr]">
         <Tarjeta>

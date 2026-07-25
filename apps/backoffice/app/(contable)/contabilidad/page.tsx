@@ -7,7 +7,8 @@ import { reporteriaService } from "@/lib/core-server";
 import type { AsientoReciente } from "@sumo/core";
 import type { FiltrosAsientos } from "@sumo/contracts";
 import { pesos } from "@/lib/format";
-import { Kpi, PageHeader, Tarjeta } from "@/components/panel/ui";
+import { FilaKpis,
+  Kpi, PageHeader, Tarjeta } from "@/components/panel/ui";
 import { TablaDatos, type ColumnaDatos } from "@/components/shared/tabla-datos";
 import { crearTableQuery, hrefConParams } from "@/lib/tabla.query";
 import { cn } from "@/lib/cn";
@@ -110,12 +111,12 @@ export default async function ContabilidadPage({
         descripcion="Asientos de partida doble generados automáticamente por los eventos de cartera."
       />
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <FilaKpis>
         <Kpi titulo="Asientos registrados" valor={String(asientos.length)} />
         <Kpi titulo="Movimiento total" valor={pesos(totalDebito)} acento="primary" />
         <Kpi titulo="Despachados a World Office" valor={String(despachados)} acento="emerald" />
         <Kpi titulo="Fallidos (pendientes reintento)" valor={String(fallidos)} acento="amber" />
-      </div>
+      </FilaKpis>
 
       <Tarjeta className="mt-6 overflow-x-auto">
         <TablaDatos

@@ -1,3 +1,4 @@
+import { Children, Fragment } from "react";
 import { cn } from "@/lib/cn";
 
 export function PageHeader({
@@ -27,7 +28,34 @@ export function Tarjeta({
   className?: string;
   children: React.ReactNode;
 }) {
-  return <div className={cn("rounded-2xl border border-border bg-card p-6", className)}>{children}</div>;
+  return <div className={cn("rounded-none border border-border bg-card p-6", className)}>{children}</div>;
+}
+
+/**
+ * Fila de KPIs con el lenguaje del home: sin cajas, cada dato separado del
+ * siguiente por una línea vertical (w-px bg-foreground), como las features
+ * de la landing. En móvil apilan sin línea, igual que el home.
+ */
+export function FilaKpis({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const items = Children.toArray(children);
+  return (
+    <div className={cn("flex flex-col gap-6 md:flex-row md:gap-8", className)}>
+      {items.map((item, i) => (
+        <Fragment key={i}>
+          {i > 0 ? (
+            <span className="hidden w-px shrink-0 self-stretch bg-foreground md:block" aria-hidden />
+          ) : null}
+          <div className="flex-1">{item}</div>
+        </Fragment>
+      ))}
+    </div>
+  );
 }
 
 export function Kpi({
@@ -50,11 +78,13 @@ export function Kpi({
           ? "text-emerald-400"
           : "text-foreground";
   return (
-    <Tarjeta className="p-5">
+    <div>
       <p className="text-xs uppercase tracking-wide text-muted-foreground">{titulo}</p>
-      <p className={cn("mt-2 text-2xl font-bold tabular-nums", color)}>{valor}</p>
+      <p className={cn("mt-2 font-headline text-3xl font-bold tabular-nums tracking-tight", color)}>
+        {valor}
+      </p>
       {nota ? <p className="mt-1 text-xs text-muted-foreground">{nota}</p> : null}
-    </Tarjeta>
+    </div>
   );
 }
 

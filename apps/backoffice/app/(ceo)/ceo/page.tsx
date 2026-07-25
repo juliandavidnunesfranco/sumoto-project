@@ -6,7 +6,8 @@ import type { CarteraPorTienda } from "@sumo/core";
 import type { FiltrosCarteraTienda } from "@sumo/contracts";
 import { reporteriaService } from "@/lib/core-server";
 import { pesos, pesosCompacto } from "@/lib/format";
-import { ColumnasMensuales, Kpi, PageHeader, Tarjeta } from "@/components/panel/ui";
+import { ColumnasMensuales, FilaKpis,
+  Kpi, PageHeader, Tarjeta } from "@/components/panel/ui";
 import { TablaDatos, type ColumnaDatos } from "@/components/shared/tabla-datos";
 import { crearTableQuery } from "@/lib/tabla.query";
 
@@ -75,7 +76,7 @@ export default async function CeoPage({
         descripcion="Tablero ejecutivo del negocio de financiación. Solo lectura."
       />
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <FilaKpis>
         <Kpi titulo="Cartera total" valor={pesosCompacto(resumen?.cartera_total_centavos ?? 0)} acento="primary" />
         <Kpi titulo="Créditos activos" valor={String(resumen?.creditos_activos ?? 0)} />
         <Kpi
@@ -84,11 +85,11 @@ export default async function CeoPage({
           acento="amber"
         />
         <Kpi titulo="ICV" valor={`${(Number(resumen?.icv ?? 0) * 100).toFixed(1)}%`} acento="amber" />
-      </div>
+      </FilaKpis>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <Tarjeta>
-          <h2 className="font-semibold">Recaudo de los últimos meses</h2>
+          <h2 className="font-headline text-3xl font-bold tracking-tight">Recaudo de los últimos meses</h2>
           <div className="mt-4">
             <ColumnasMensuales
               datos={recaudo

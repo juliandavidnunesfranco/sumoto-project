@@ -8,7 +8,8 @@ import { CalendarDays, ChevronLeft, ChevronRight, MapPin, Users } from "lucide-r
 import { obtenerSesion } from "@/lib/auth";
 import { agendaService, reporteriaService } from "@/lib/core-server";
 import { pesosCompacto } from "@/lib/format";
-import { Kpi, PageHeader, Tarjeta } from "@/components/panel/ui";
+import { FilaKpis,
+  Kpi, PageHeader, Tarjeta } from "@/components/panel/ui";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { crearCita } from "./actions";
@@ -100,7 +101,7 @@ export default async function CalendarioPage({
         descripcion="Colocación diaria, totales semanales y citas agendadas de tu tienda."
       />
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <FilaKpis>
         <Kpi titulo="Colocación del mes" valor={pesosCompacto(totalMes)} acento="primary" />
         <Kpi titulo="Créditos desembolsados" valor={String(totalCreditos)} />
         <Kpi titulo="Citas del mes" valor={String(citas.length)} />
@@ -109,10 +110,10 @@ export default async function CalendarioPage({
           valor={String(citas.filter((c) => c.tipo === "visita").length)}
           acento="emerald"
         />
-      </div>
+      </FilaKpis>
 
       {errores.length > 0 && (
-        <div className="mt-4 rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
+        <div className="mt-4 border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
           {errores.map((e) => (
             <p key={e}>• {e}</p>
           ))}
