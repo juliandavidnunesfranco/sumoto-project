@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { LogOut } from "lucide-react";
 import type { Sesion } from "@/lib/auth";
 import { ROLES } from "@/lib/roles-nav";
@@ -19,9 +19,19 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+
+/** Submenú dinámico bajo un ítem del nav (ej. productos bajo Políticas). */
+export interface SubNav {
+  /** href del ítem padre del nav bajo el que cuelga el submenú. */
+  padre: string;
+  items: { label: string; href: string }[];
+}
 
 // Mismo lenguaje de hover que home/login: borde inferior siempre visible (pero
 // transparente en reposo), se completa a un marco entero en hover, animando
@@ -33,13 +43,20 @@ export function PanelShell({
   sesion,
   children,
   banner,
+  subnav,
 }: {
   sesion: Sesion;
   children: React.ReactNode;
   /** Franja bajo el header (ej. recordatorio de citas del manager). */
   banner?: React.ReactNode;
+  /** Submenú dinámico (ej. productos de crédito bajo Políticas). */
+  subnav?: SubNav;
 }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  // URL vigente con query, para marcar activo un ítem del submenú (los
+  // productos se distinguen por searchParams, no por pathname)
+  const urlActual = searchParams.size > 0 ? `${pathname}?${searchParams}` : pathname;
   const config = ROLES[sesion.rol];
   const iniciales = sesion.nombre
     .split(" ")
@@ -87,6 +104,21 @@ export function PanelShell({
                       <item.icon />
                       {item.label}
                     </SidebarMenuButton>
+                    {subnav && subnav.padre === item.href && subnav.items.length > 0 ? (
+                      <SidebarMenuSub className="mt-1 space-y-1">
+                        {subnav.items.map((sub) => (
+                          <SidebarMenuSubItem key={sub.href}>
+                            <SidebarMenuSubButton
+                              isActive={urlActual === sub.href}
+                              className={cn(enlaceEstiloSuzuki, "h-auto")}
+                              render={<Link href={sub.href} />}
+                            >
+                              {sub.label}
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                        ))}
+                      </SidebarMenuSub>
+                    ) : null}
                   </SidebarMenuItem>
                 );
               })}
