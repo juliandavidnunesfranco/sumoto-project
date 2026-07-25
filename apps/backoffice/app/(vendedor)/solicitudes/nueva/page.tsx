@@ -60,6 +60,7 @@ export default async function NuevaSolicitud({
     motoId?: string;
     solicitudId?: string;
     error?: string;
+    docSubido?: string;
     paso?: string;
     motoQuery?: string;
     motoPagina?: string;
@@ -397,8 +398,18 @@ export default async function NuevaSolicitud({
             <>
               <Tarjeta className="my-6">
                 <h2 className="font-semibold font-headline text-3xl">Documentos</h2>
+                {params.docSubido && (
+                  <p className="mt-3 border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-600">
+                    Documento archivado en el expediente — el financiero lo verá
+                    al revisar el desembolso.
+                  </p>
+                )}
                 <div className="mt-4">
-                  <SubirDocumentos />
+                  <SubirDocumentos
+                    solicitudId={params.solicitudId!}
+                    cedula={cliente?.cedula ?? ""}
+                    motoId={params.motoId}
+                  />
                 </div>
                 <div className="mt-5 border-t border-border pt-5">
                   <DescargasDocumento

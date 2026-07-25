@@ -4,7 +4,10 @@
 // los schemas de @sumo/contracts, llaman la fachada del core y redirigen.
 // El estado del wizard viaja en searchParams (SSR puro, funciona sin JS).
 
-import { EvaluarSolicitudRequestSchema } from "@sumo/contracts";
+import {
+  EvaluarSolicitudRequestSchema,
+  SubirDocumentoRequestSchema,
+} from "@sumo/contracts";
 import { redirect } from "next/navigation";
 import { obtenerSesion } from "@/lib/auth";
 import { clientesService, originacionService } from "@/lib/core-server";
@@ -88,4 +91,47 @@ export async function evaluarSolicitud(formData: FormData): Promise<void> {
   redirect(
     `/solicitudes/nueva?solicitudId=${resultado.valor.solicitud.id}&cedula=${cedula}${motoId ? `&motoId=${motoId}` : ""}`,
   );
+}
+
+// Sube un documento del solicitante al expediente (bucket privado tras el
+// core). Ya no es cosmético: lo que el vendedor carga aquí es lo que el
+// financiero revisa y descarga en /desembolsos/[id].
+export async function subirDocumentoSolicitud(formData: FormData): Promise<void> {
+  const sesion = await sesionDeVendedor();
+
+  const solicitudId = String(formData.get("solicitudId") ?? "");
+  const cedula = String(formData.get("cedula") ?? "");
+  const motoId = String(formData.get("motoId") ?? "");
+  const contexto = `&solicitudId=${solicitudId}&cedula=${cedula}${motoId ? `&motoId=${motoId}` : ""}&paso=documentos`;
+
+  // alcance por tienda: la solicitud debe ser de LA tienda de la sesión
+  // (misma regla que la RLS de lectura — el id no basta como permiso)
+  const par = await originacionService().solicitudEvaluada(solicitudId);
+  if (!par || par.solicitud.tiendaId !== sesion.tiendaId) {
+    conError(["la solicitud no existe o no pertenece a tu tienda"], contexto);
+  }
+
+  const archivo = formData.get("archivo");
+  if (!(archivo instanceof File) || archivo.size === 0) {
+    conError(["selecciona un archivo"], contexto);
+  }
+
+  const forma = SubirDocumentoRequestSchema.safeParse({
+    solicitudId,
+    nombre: archivo.name,
+    mime: archivo.type,
+    tamanoBytes: archivo.size,
+  });
+  if (!forma.success) {
+    conError(forma.error.issues.map((i) => i.message), contexto);
+  }
+
+  await originacionService().subirDocumento(
+    forma.data.solicitudId,
+    forma.data.nombre,
+    await archivo.arrayBuffer(),
+    forma.data.mime,
+  );
+
+  redirect(`/solicitudes/nueva?${contexto.slice(1)}&docSubido=1`);
 }

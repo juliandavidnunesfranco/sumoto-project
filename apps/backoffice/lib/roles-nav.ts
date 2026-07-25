@@ -3,6 +3,7 @@
 
 import type { LucideIcon } from "lucide-react";
 import {
+  BanknoteArrowDown,
   Calculator,
   CalendarDays,
   CalendarCheck,
@@ -48,6 +49,7 @@ export const ROLES: Record<Rol, RolConfig> = {
     descripcion: "Vigila riesgo, cartera y define las políticas de crédito.",
     nav: [
       { label: "Cartera y riesgo", href: "/cartera", icon: Wallet },
+      { label: "Desembolsos", href: "/desembolsos", icon: BanknoteArrowDown },
       { label: "Políticas de crédito", href: "/politicas", icon: ScrollText },
       { label: "Buscar cliente", href: "/buscar", icon: UserSearch },
     ],

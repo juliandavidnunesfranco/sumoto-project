@@ -1,15 +1,14 @@
 // Dashboard de cartera (financiero): server component que consulta la
 // fachada ReporteriaService del core — la app jamás toca la base directo.
 
+import Link from "next/link";
 import { BanknoteArrowDown } from "lucide-react";
-import type { FiltrosRecaudoMensual, FiltrosSolicitudes } from "@sumo/contracts";
-import type { SolicitudReciente } from "@sumo/core";
-import { catalogoService, reporteriaService } from "@/lib/core-server";
+import type { FiltrosRecaudoMensual } from "@sumo/contracts";
+import { reporteriaService } from "@/lib/core-server";
 import { pesos, pesosCompacto } from "@/lib/format";
-import { BarraHorizontal, Kpi, PageHeader, Tarjeta } from "@/components/panel/ui";
-import { desembolsarSolicitud } from "./actions";
+import { BarraHorizontal, FilaKpis,
+  Kpi, PageHeader, Tarjeta } from "@/components/panel/ui";
 import { TablaDatos, type ColumnaDatos } from "@/components/shared/tabla-datos";
-import { columnasSolicitudes } from "@/components/shared/columnas-solicitudes";
 import { crearTableQuery, hrefConParams } from "@/lib/tabla.query";
 
 export const dynamic = "force-dynamic";
@@ -90,7 +89,6 @@ export default async function DashboardCartera({
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const params = await searchParams;
-  const { error, desembolsada } = params;
 
   const tableQuery = crearTableQuery<RecaudoMensual, FiltrosRecaudoMensual>(
     params,
@@ -99,58 +97,16 @@ export default async function DashboardCartera({
 
   const svc = reporteriaService();
 
-  // el catálogo va primero: las columnas de pendientes lo necesitan para
-  // el filtro de moto, y crearTableQuery lee esas columnas
-  const catalogoMotos = await catalogoService().buscarMotos({
-    pagina: 1,
-    porPagina: 50,
-  });
-
-  // Cola de desembolso: alcance NACIONAL (el financiero desembolsa para
-  // todas las tiendas). Decisión/estado son criterio FIJO → columnas
-  // ocultas y filtros forzados DESPUÉS del spread (la URL no los pisa).
-  // Params de orden propios (penOrden/penDir): en esta página conviven
-  // dos tablas y no deben pisarse.
-  const COLUMNAS_PENDIENTES = columnasSolicitudes({
-    conWizard: false,
-    conVendedor: true,
-    conDecision: false,
-    conEstado: false,
-    motos: catalogoMotos.items.map((m) => m.nombre),
-    accionExtra: (s) => (
-      <form action={desembolsarSolicitud}>
-        <input type="hidden" name="solicitudId" value={s.solicitud_id} />
-        <button
-          type="submit"
-          className="inline-flex items-center gap-1.5 border border-black px-3 py-1.5 font-headline text-xs font-bold transition-colors hover:bg-black hover:text-white"
-        >
-          <BanknoteArrowDown className="size-3.5" />
-          Desembolsar
-        </button>
-      </form>
-    ),
-  });
-  const tqPendientes = crearTableQuery<SolicitudReciente, FiltrosSolicitudes>(
-    params,
-    COLUMNAS_PENDIENTES,
-    { paramOrden: "penOrden", paramDir: "penDir" },
-  );
-
+  // La cola de desembolso vive en su propio apartado (/desembolsos): allí
+  // se valida el expediente antes de desembolsar. Aquí solo se cuenta.
   const [resumen, porFranja, recaudo, pendientes] = await Promise.all([
     svc.resumenCartera(),
     svc.moraPorFranja(),
     svc.recaudoMensual({ query: params.recQuery, ...tableQuery }),
     svc.solicitudesPaginadas({
-      query: params.desQuery,
-      orden: tqPendientes.orden,
-      direccion: tqPendientes.direccion,
-      filtros: {
-        ...tqPendientes.filtros,
-        decision: "APROBADO",
-        estado: "evaluada",
-      },
+      filtros: { decision: "APROBADO", estado: "evaluada" },
       pagina: 1,
-      porPagina: 20,
+      porPagina: 1,
     }),
   ]);
 
@@ -171,7 +127,7 @@ export default async function DashboardCartera({
         descripcion="Salud de la cartera, mora por franjas y recaudo mensual."
       />
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <FilaKpis>
         <Kpi titulo="Créditos activos" valor={String(resumen?.creditos_activos ?? 0)} />
         <Kpi titulo="Saldo de cartera" valor={pesosCompacto(resumen?.cartera_total_centavos ?? 0)} />
         <Kpi
@@ -185,47 +141,31 @@ export default async function DashboardCartera({
           acento="primary"
           nota="Índice de cartera vencida"
         />
-      </div>
+      </FilaKpis>
 
-      <Tarjeta className="mt-6 overflow-x-auto">
-        {error && (
-          <p className="mb-3 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            No se pudo desembolsar: {error}
-          </p>
-        )}
-        {desembolsada && (
-          <p className="mb-3 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-600">
-            Crédito desembolsado (solicitud #{desembolsada}): plan de cuotas
-            generado y asiento contable en camino.
-          </p>
-        )}
-
-        <TablaDatos
-          titulo={
-            // subtítulo en bloque (no inline): un título largo empujaba el
-            // input de búsqueda a la línea de abajo — así queda enfrentado
-            <span className="block">
-              Pendientes de desembolso
-              <span className="block font-sans text-sm font-normal text-muted-foreground">
-                aprobadas por el motor · todas las tiendas
+      {pendientes.total > 0 && (
+        <Link
+          href="/desembolsos"
+          className="mt-6 flex items-center justify-between border border-border bg-card p-4 transition-colors hover:border-black"
+        >
+          <span className="flex items-center gap-3">
+            <BanknoteArrowDown className="size-5 text-primary" />
+            <span>
+              <span className="block font-headline text-lg font-bold tracking-tight">
+                {pendientes.total} solicitud{pendientes.total === 1 ? "" : "es"} esperando
+                desembolso
+              </span>
+              <span className="block text-xs text-muted-foreground">
+                Verifica el expediente y desembolsa en el apartado Desembolsos.
               </span>
             </span>
-          }
-          busqueda={{
-            param: "desQuery",
-            placeholder: "Cliente, cédula, moto o #id…",
-          }}
-          columnas={COLUMNAS_PENDIENTES}
-          filas={pendientes.items}
-          claveFila={(s) => s.solicitud_id}
-          paramOrden="penOrden"
-          paramDir="penDir"
-          vacio="No hay solicitudes aprobadas esperando desembolso."
-        />
-      </Tarjeta>
+          </span>
+          <span className="font-headline text-sm font-bold">Ir a Desembolsos →</span>
+        </Link>
+      )}
 
       <Tarjeta className="mt-6">
-        <h2 className="font-semibold">Mora por franjas (días)</h2>
+        <h2 className="font-headline text-3xl font-bold tracking-tight">Mora por franjas (días)</h2>
         <div className="mt-4 space-y-3">
           {franjas.map((f) => (
             <BarraHorizontal
