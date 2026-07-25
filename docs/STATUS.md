@@ -990,4 +990,94 @@ Ideas nuevas de Julián (mismo mensaje):
   protegen route handlers → cada ruta llama exigirRol (dos puertas).
   Verificado con descargas reales: solicitudes con decision=APROBADO+orden
   desc, recaudo con pagos=gte:15, asientos con origen=desembolso.
+- 2026-07-24 (noche): "PRODUCTO CREADO NO APARECE EN EL WIZARD" — diagnóstico
+  con evidencia: NO era bug de código. La base solo tenía los 2 productos del
+  seed (el "Crédito Fácil" que Julián creó nunca estaba); se reprodujo el
+  submit completo en navegador (financiero → /politicas → crear) y funcionó:
+  insert con activo=true, y el wizard del vendedor lo lista en el select del
+  paso Crédito. Causa real: un `supabase db reset` posterior (migraciones del
+  15–17) borró el producto creado a mano — todo lo que no está en seed.sql es
+  efímero. Quedó creado "Crédito Fácil" (26% EA, 6-36 meses, score ≥550) para
+  la demo; si se quiere PERMANENTE, agregarlo a seed.sql.
+- 2026-07-24 (noche): SLIDERS EN /politicas (fidelidad v0 admin-politicas):
+  nuevo `components/financiero/campo-slider.tsx` ("use client" mínimo: range
+  nativo + valor grande en primary a la derecha + switch v0 para reglas
+  opcionales; el submit sigue siendo la server action del form). Truco clave:
+  regla apagada = input `disabled` = NO viaja en FormData = el action la
+  recibe como undefined — cero cambios en actions/Zod/dominio. Verificado en
+  navegador: guardar con score 620 y mora apagada dejó el JSONB sin
+  mora_maxima_dias. `key={seleccionado.id}` en el form para que los sliders
+  remonten al cambiar de producto (estado client no se arrastra). El form
+  "Nuevo producto" también pasó a sliders (tasa EA, plazos, score, cuota%,
+  LTV). RANGOS/STEPS son propuesta mía — Julián debe auditarlos como
+  banquero (ej. tasa EA 10–60% step 0.5, ingreso mínimo 0–10M step 100k).
+- 2026-07-24 (noche): CARDS AL LENGUAJE DEL HOME — `Kpi` ya no es tarjeta
+  redondeada: dato pelado con etiqueta uppercase y valor font-headline 3xl,
+  y nuevo contenedor `FilaKpis` (panel/ui.tsx) que replica el patrón de las
+  features de la landing: separador vertical `w-px bg-foreground` entre
+  datos (en móvil apilan sin línea). Aplicado en las 6 vistas con KPIs
+  (cartera, hoy, tienda, calendario, contabilidad, ceo). `Tarjeta` pasó de
+  rounded-2xl a rounded-none (esquinas rectas estilo Suzuki — aplica GLOBAL,
+  también vendedor) y las alertas/resultado de simulación perdieron el
+  rounded-xl. Títulos de sección restantes unificados a font-headline
+  (Mora por franjas, Recaudo de los últimos meses, Simulador). Verificado
+  en navegador (financiero, manager), tsc limpio, 129/129 tests core.
+- 2026-07-25 (madrugada): PRODUCTOS AL SIDEBAR — la lista de productos de
+  /politicas se movió a un SUBMENÚ del sidebar bajo "Políticas de crédito"
+  (`SubNav` en PanelShell + `SidebarMenuSub` de shadcn), con el estilo del
+  botón "Ingresar" del home (font-headline bold, borde transparente →
+  border-black). El layout de (financiero) lo arma desde
+  `listarProductosActivos()` (ahora con orden estable por creado_en) e
+  incluye "+ Nuevo producto" (`/politicas?nuevo=1` — el form de crear salió
+  de la columna izquierda; la vista queda entera para reglas + simulador).
+- 2026-07-25 (madrugada): VERIFICACIÓN PRE-DESEMBOLSO (etapa de otorgamiento
+  del SARC, práctica SFC: Ley 1266 habeas data, SARLAFT, pagaré, soportes) —
+  pedido de Julián: la cola de desembolso merece análisis del caso, no un
+  botón a ciegas. TODO nace en el core (respuesta a su pregunta: dominio +
+  caso de uso + repositorios + contratos Zod + DTO, la UI solo traduce):
+  · Dominio `originacion/domain/verificacion.ts`: catálogo
+    CHECKLIST_DESEMBOLSO (4 OBLIGATORIOS que bloquean: identidad,
+    autorización centrales, SARLAFT, pagaré; 5 PONDERADOS que suman:
+    buró 20, ingresos 30, laboral 20, referencias 10, prenda 20; mínimo
+    70/100) + `evaluarVerificacion()` puro con explicabilidad (7 tests).
+    PUNTOS Y UMBRAL SON PROPUESTA — Julián los audita como banquero;
+    parametrizarlos por producto (como reglas_decision) queda de backlog.
+  · Caso de uso `MarcarItemVerificacion` (upsert idempotente, whitelist del
+    dominio, expediente cerrado tras desembolso). Migración
+    `20260725051459`: tabla `originacion.verificaciones` (marcado_por =
+    trazabilidad) con RLS (escribe solo financiero) + bucket PRIVADO
+    `documentos` creado POR MIGRACIÓN (insert en storage.buckets — sin
+    políticas públicas: solo el core con service_role entra). Aplicada con
+    `migration up`, sin reset.
+  · GATE en cartera: `SolicitudParaDesembolso` ganó
+    verificacionCompleta/Razones y `DesembolsarSolicitudAprobada` rechaza
+    expediente incompleto CON razones (dos puertas: la UI deshabilita, el
+    core re-valida). El workflow interno `desembolsarCredito` NO se gateó a
+    propósito (lo usan seed/e2e/futuros canales internos); la puerta es del
+    caso de uso del rol. +1 test (suite 137/137).
+  · Documentos REALES: `AlmacenDocumentos` (contrato en dominio) +
+    `AlmacenDocumentosSupabase` (Storage, prefijo por solicitud). El paso 5
+    del wizard dejó de ser cosmético: `SubirDocumentos` ahora es SERVER
+    component (form → action `subirDocumentoSolicitud` con scope por tienda
+    → bucket) — se eliminó el "use client" y el disclaimer de mentira.
+  · `ClientesService.buscarPorId` nuevo (el expediente muestra al
+    solicitante). `reporteDeRiesgo()` en RepositorioSolicitudes: el JSONB
+    del buró archivado con la decisión ahora es descargable (soporte SFC).
+- 2026-07-25 (madrugada): APARTADO /desembolsos (financiero) — nav+proxy
+  nuevos; la tabla "Pendientes de desembolso" salió de /cartera (allí queda
+  un contador-link) y cada fila abre `/desembolsos/[solicitudId]`: EXPEDIENTE
+  con FilaKpis del caso (solicitante/moto/monto/score), checklist con
+  checkboxes (un solo form "Guardar verificación" — checkbox ausente =
+  desmarcado), tarjeta de estado con puntaje y razones en vivo, decisión del
+  motor, descargas (reporte de buró .txt marcado DEMO, datos del documento
+  de identidad, documentos del solicitante vía route handlers delgados con
+  exigirRol financiero) y carga de soportes también desde el expediente.
+  VERIFICADO E2E EN NAVEGADOR: vendedor creó solicitud + subió PDF real al
+  bucket → financiero abrió expediente (botón deshabilitado 0/100 con
+  razones) → marcó 4 obligatorios + 70 pts → guardó (upserts con
+  marcado_por/marcado_en) → desembolsó → base: crédito + 24 cuotas + asiento
+  + estado desembolsada + 7 marcas. Suite 137/137, e2e flow en verde
+  (necesita `SUPABASE_SERVICE_ROLE_KEY` exportada), typecheck limpio.
+  Backlog nuevo: bandeja de REVISION_MANUAL (la solicitud en revisión sigue
+  sin pantalla donde convertirla en aprobado/negado).
 - (agregar nuevas decisiones aquí con fecha)
