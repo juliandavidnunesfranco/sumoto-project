@@ -218,6 +218,40 @@ crédito con cuotas → dashboard cartera + asientos contables. Branding SUMOTO.
       - Rechazado explícitamente del mockup: el motor de decisión y el
         escaneo de cédula corriendo 100% en el cliente — se usan las
         fachadas reales del core en ambos casos.
+- [x] **Multi-tenencia — fase 1 completa (2026-07-25)**: fundación
+      `empresas` + patrón de referencia en el módulo `clientes`.
+      · Migración `20260725180000_empresas_tenencia`: tabla `public.empresas`
+        (nombre, slug único) + función `empresa_actual()` (mismo patrón que
+        `rol_actual()`/`tienda_actual()`) + columna `empresa_id` en
+        `public.tiendas` y `public.perfiles`. 2 fugas de RLS corregidas de
+        paso: políticas `tiendas_lectura` y `perfiles_lectura_gestion` no
+        acotaban por empresa (cualquier usuario autenticado veía tiendas/
+        perfiles de OTRAS empresas).
+      · `Perfil.empresaId` en el módulo `seguridad` — viaja en la sesión
+        junto a rol/tienda.
+      · Migración `20260725181000_clientes_empresa_id`: `empresa_id not
+        null` en `clientes.clientes` + RLS acotada. Módulo `clientes`
+        migrado de punta a punta como PATRÓN DE REFERENCIA: dominio
+        (`Cliente.empresaId`), mapper, `RepositorioClientes` (todas las
+        firmas — `buscarPorCedula`/`buscarPorId`/`buscar`/`crear` — reciben
+        `empresaId`), caso de uso `RegistrarCliente`
+        (`ComandoRegistrarCliente.empresaId`, idempotencia por cédula
+        ACOTADA a la empresa: dos empresas pueden tener cada una un cliente
+        con la misma cédula), fachada `ClientesService`. Los 7 call sites
+        del backoffice (wizard de solicitud, buscador, expediente de
+        desembolso, etc.) actualizados para propagar `sesion.empresaId`.
+      · Suite de aislamiento entre tenants nueva
+        (`aislamiento-tenant.e2e.test.ts`, 5 tests): siembra una "empresa
+        rival" con un cliente de la MISMA cédula que un cliente real de
+        SUMOTO y verifica que `buscarPorCedula`/`buscarPorId`/`buscar` de
+        SUMOTO nunca lo ven (y viceversa) — incluye el control negativo
+        (verificado que el test SÍ detecta la fuga si se rompe el filtro).
+      · Verificación final fase 1 (2026-07-25): 138/138 unit, 6/6 e2e
+        (`flow.e2e.test.ts` + `aislamiento-tenant.e2e.test.ts`), build de
+        producción del backoffice exitoso (24 rutas, sin cambios de
+        superficie), recorrido manual en navegador confirmado (vendedor →
+        `/solicitudes/nueva` → cédula del seed → datos del cliente en
+        pantalla, `empresaId` viajando de punta a punta).
 
 ## En curso 🔨
 - [x] `exigirRol` (apps/backoffice/lib/auth.ts) delega la política de
@@ -335,6 +369,20 @@ En su lugar:
   no vive en la app, que es el prerequisito de este diseño.
 
 ## Siguiente (en orden) 📋
+
+### Multi-tenencia — extender el patrón de `clientes` (plan separado)
+Fase 1 (fundación `empresas` + módulo `clientes` de referencia) HECHA — ver
+"Hecho" arriba. Replicar el mismo patrón (`empresa_id` en el schema del
+módulo + RLS acotada + dominio/repositorio/caso de uso/fachada recibiendo
+`empresaId` + call sites del backoffice + suite de aislamiento) en:
+1. `originacion` (productos_credito, solicitudes, decisiones)
+2. `cartera` + `links` (creditos, cuotas, pagos, aplicaciones_pago,
+   links.solicitud_credito — el primer Module Link real, revisar cómo se
+   acota por empresa una tabla de enlace)
+3. `contabilidad` (asientos, partidas)
+4. `catalogo` (motos — dominio puro, sin application/, ver si el patrón
+   aplica igual sin caso de uso de por medio)
+5. `agenda`
 
 ### ~~Para mañana 2026-07-17~~ ✅ HECHO 2026-07-17 (mañana)
 1. ~~Búsqueda en TODAS las tablas, sobre CUALQUIER columna~~ ✅ Opción A
@@ -1080,4 +1128,31 @@ Ideas nuevas de Julián (mismo mensaje):
   (necesita `SUPABASE_SERVICE_ROLE_KEY` exportada), typecheck limpio.
   Backlog nuevo: bandeja de REVISION_MANUAL (la solicitud en revisión sigue
   sin pantalla donde convertirla en aprobado/negado).
+- 2026-07-25: MULTI-TENENCIA — FASE 1 (fundación + módulo `clientes` de
+  referencia). Tabla `public.empresas` (nombre, slug único) + función
+  `empresa_actual()` + columna `empresa_id` en `public.tiendas` y
+  `public.perfiles`; de paso, 2 fugas de RLS corregidas
+  (`tiendas_lectura`, `perfiles_lectura_gestion` no acotaban por empresa).
+  `Perfil.empresaId` en `seguridad`. Módulo `clientes` migrado de punta a
+  punta como patrón de referencia: `empresa_id not null` en
+  `clientes.clientes` + RLS, dominio (`Cliente.empresaId`), mapper,
+  `RepositorioClientes` (las 4 firmas reciben `empresaId`), caso de uso
+  `RegistrarCliente` (idempotencia por cédula ACOTADA a la empresa — la
+  misma cédula puede existir en dos empresas distintas, son personas o
+  contextos de negocio distintos), fachada `ClientesService`, 7 call
+  sites del backoffice propagando `sesion.empresaId`. Suite nueva
+  `aislamiento-tenant.e2e.test.ts` (5 tests, con control negativo
+  verificado) siembra una empresa rival con un cliente de la MISMA
+  cédula y confirma que SUMOTO nunca lo ve (y viceversa).
+  VERIFICACIÓN FINAL: 138/138 unit, 6/6 e2e (`flow.e2e.test.ts` +
+  `aislamiento-tenant.e2e.test.ts` — el primero rompió en el primer
+  intento porque no pasaba el nuevo `empresaId` requerido, arreglado por
+  separado; útil como recordatorio de que un campo obligatorio nuevo
+  hay que propagarlo también a los e2e existentes, no solo a los call
+  sites de producción), build de producción exitoso (24 rutas, sin
+  cambios de superficie), recorrido manual en navegador (vendedor →
+  `/solicitudes/nueva` → cédula del seed de su propia tienda → datos del
+  cliente en pantalla). Siguiente: replicar el patrón en `originacion`,
+  `cartera`+`links`, `contabilidad`, `catalogo`, `agenda` (plan separado,
+  ver "Siguiente").
 - (agregar nuevas decisiones aquí con fecha)
