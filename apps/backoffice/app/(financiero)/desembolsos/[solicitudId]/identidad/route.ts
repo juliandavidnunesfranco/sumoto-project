@@ -15,7 +15,9 @@ export async function GET(
 
   const { solicitudId } = await ctx.params;
   const par = await originacionService().solicitudEvaluada(solicitudId);
-  const cliente = par ? await clientesService().buscarPorId(par.solicitud.clienteId) : null;
+  const cliente = par
+    ? await clientesService().buscarPorId(par.solicitud.clienteId, sesion.empresaId)
+    : null;
   if (!cliente) {
     return new Response("Cliente no encontrado", { status: 404 });
   }

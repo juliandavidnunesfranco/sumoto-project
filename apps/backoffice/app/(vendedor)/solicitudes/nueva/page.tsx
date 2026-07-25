@@ -77,7 +77,9 @@ export default async function NuevaSolicitud({
   const tiendaId = sesion?.tiendaId ?? null;
 
   const clienteCrudo =
-    params.cedula && tiendaId ? await clientesService().buscarPorCedula(params.cedula) : null;
+    params.cedula && tiendaId && sesion
+      ? await clientesService().buscarPorCedula(params.cedula, sesion.empresaId)
+      : null;
   const cliente = clienteCrudo && clienteCrudo.tiendaId === tiendaId ? clienteCrudo : null;
 
   const productos = cliente ? await originacionService().listarProductosActivos() : [];

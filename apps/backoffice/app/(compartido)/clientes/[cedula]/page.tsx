@@ -39,7 +39,9 @@ export default async function CasosDelCliente({
 
   // scoping: el core corre con SERVICE_ROLE — un rol de tienda solo ve al
   // cliente si es de SU tienda (URL ajena = "no encontrado", no datos ajenos)
-  const clienteCrudo = sesion ? await clientesService().buscarPorCedula(cedula) : null;
+  const clienteCrudo = sesion
+    ? await clientesService().buscarPorCedula(cedula, sesion.empresaId)
+    : null;
   const cliente =
     clienteCrudo && (alcanceNacional || clienteCrudo.tiendaId === sesion?.tiendaId)
       ? clienteCrudo

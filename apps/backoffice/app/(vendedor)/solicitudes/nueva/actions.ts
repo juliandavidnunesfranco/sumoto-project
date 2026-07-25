@@ -37,6 +37,7 @@ export async function escanearCedula(formData: FormData): Promise<void> {
     fuente: "escaner",
     entradaCruda: { codigo },
     tiendaId: sesion.tiendaId!,
+    empresaId: sesion.empresaId,
   });
 
   if (!resultado.ok) {
