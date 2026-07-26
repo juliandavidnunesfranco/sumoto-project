@@ -48,7 +48,7 @@ export default async function MisSolicitudes({
   // vendedor → sus propias solicitudes; manager → las de su tienda.
   // Sin tienda asignada = estado anómalo: vacío, nunca alcance nacional.
   const { items: solicitudes, total } = sesion?.tiendaId
-    ? await reporteriaService().solicitudesPaginadas({
+    ? await reporteriaService().solicitudesPaginadas(sesion.empresaId, {
         ...(sesion.rol === "vendedor"
           ? { creadoPor: sesion.userId }
           : { tiendaId: sesion.tiendaId }),

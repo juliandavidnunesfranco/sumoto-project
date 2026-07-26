@@ -65,7 +65,7 @@ export default async function CasosDelCliente({
   );
 
   const { items: solicitudes, total } = cliente
-    ? await reporteriaService().solicitudesPaginadas({
+    ? await reporteriaService().solicitudesPaginadas(sesion!.empresaId, {
         clienteCedula: cliente.cedula,
         ...(alcanceNacional ? {} : { tiendaId: sesion!.tiendaId! }),
         query: sp.solQuery,

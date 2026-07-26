@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   }
 
   const params = Object.fromEntries(req.nextUrl.searchParams);
-  const { items } = await reporteriaService().solicitudesPaginadas({
+  const { items } = await reporteriaService().solicitudesPaginadas(sesion.empresaId, {
     ...(sesion.rol === "vendedor"
       ? { creadoPor: sesion.userId }
       : { tiendaId: sesion.tiendaId }),
