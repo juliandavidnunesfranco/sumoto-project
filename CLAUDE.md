@@ -92,13 +92,18 @@ modules/<nombre>/
 └── index.ts         # ÚNICA puerta importable desde fuera del módulo
 ```
 Módulos: `clientes`, `originacion`, `cartera`, `contabilidad`, `reporteria`,
-`seguridad`, `catalogo`. Los de SOLO LECTURA relajan la anatomía con criterio:
-`reporteria` (queries sobre vistas, sin domain) y `seguridad` no llevan
-workflows; `catalogo` (decisión 2026-07-14: módulo propio, no parte de
+`seguridad`, `catalogo`, `agenda`. Los de SOLO LECTURA relajan la anatomía con
+criterio: `reporteria` (queries sobre vistas, sin domain) y `seguridad` no
+llevan workflows; `catalogo` (decisión 2026-07-14: módulo propio, no parte de
 originacion — el catálogo de motos es inventario/pricing, con precio de
 contado y de crédito SIEMPRE distintos) tiene domain puro pero no
 application/: leer un catálogo no es una acción de negocio, la fachada
-delega directo al repositorio.
+delega directo al repositorio; `agenda` (citas/visitas de vendedor y manager)
+tiene domain puro (`Cita`, `crearCita` con sus reglas) pero tampoco
+application/ ni subscribers/: crear una cita es una escritura simple sin
+pasos multi-módulo que compensar (no amerita saga) y hoy no reacciona a
+eventos de otros módulos — la fachada (`AgendaService`) invoca el dominio
+directo, igual que `catalogo`.
 
 ### Integraciones (packages/core/integrations/)
 Patrón adaptador SIEMPRE: interfaz en el dominio, implementaciones intercambiables vía DI.
