@@ -17,7 +17,15 @@ const supabase = createClient(
 
 const EMPRESA_SUMOTO = "d0000000-0000-4000-8000-000000000001";
 const TIENDA_SUMOTO = "11111111-1111-4111-8111-111111111111";
-const CEDULA_COMPARTIDA = "1099999977"; // misma cédula en las dos empresas a propósito
+
+// Único por corrida (sin necesitar `supabase db reset` entre corridas): el
+// slug de empresas tiene constraint unique y la cédula ahora es unique por
+// (cedula, empresa_id) — reusar valores fijos rompía la segunda corrida
+// consecutiva con duplicate-key. Randomizar es más simple y robusto que
+// agregar limpieza en afterAll (tiendas/perfiles referencian empresas sin
+// ON DELETE CASCADE, así que un borrado seguro requeriría lógica extra).
+const SUFIJO = Date.now().toString(36);
+const CEDULA_COMPARTIDA = `10${parseInt(SUFIJO, 36).toString().slice(-8)}`; // misma cédula en las dos empresas a propósito, única por corrida
 
 describe("aislamiento entre empresas (tenants)", () => {
   let empresaRival: string;
@@ -29,7 +37,7 @@ describe("aislamiento entre empresas (tenants)", () => {
 
     const { data: empresa, error: errEmpresa } = await supabase
       .from("empresas")
-      .insert({ nombre: "Rival S.A.S.", slug: "rival-sas" })
+      .insert({ nombre: "Rival S.A.S.", slug: `rival-sas-${SUFIJO}` })
       .select("id")
       .single();
     if (errEmpresa) throw errEmpresa;
