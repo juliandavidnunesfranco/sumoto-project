@@ -2,8 +2,10 @@
 // recaudo mensual y ranking de tiendas por cartera en TablaDatos (orden,
 // filtros por columna y búsqueda — mismo formato que el resto de tablas).
 
+import { notFound } from "next/navigation";
 import type { CarteraPorTienda } from "@sumo/core";
 import type { FiltrosCarteraTienda } from "@sumo/contracts";
+import { obtenerSesion } from "@/lib/auth";
 import { reporteriaService } from "@/lib/core-server";
 import { pesos, pesosCompacto } from "@/lib/format";
 import { ColumnasMensuales, FilaKpis,
@@ -57,6 +59,9 @@ export default async function CeoPage({
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const params = await searchParams;
+  const sesion = await obtenerSesion();
+  if (!sesion) notFound();
+
   const tableQuery = crearTableQuery<CarteraPorTienda, FiltrosCarteraTienda>(
     params,
     COLUMNAS_TIENDAS,
@@ -64,9 +69,9 @@ export default async function CeoPage({
 
   const svc = reporteriaService();
   const [resumen, porTienda, recaudo] = await Promise.all([
-    svc.resumenCartera(),
-    svc.carteraPorTienda({ query: params.tiendaQuery, ...tableQuery }),
-    svc.recaudoMensual(),
+    svc.resumenCartera(sesion.empresaId),
+    svc.carteraPorTienda(sesion.empresaId, { query: params.tiendaQuery, ...tableQuery }),
+    svc.recaudoMensual(sesion.empresaId),
   ]);
 
   return (

@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   if (sesion instanceof Response) return sesion;
 
   const params = Object.fromEntries(req.nextUrl.searchParams);
-  const recaudo = await reporteriaService().recaudoMensual({
+  const recaudo = await reporteriaService().recaudoMensual(sesion.empresaId, {
     query: params.recQuery,
     filtros: params as FiltrosRecaudoMensual,
     orden: params.orden,

@@ -3,9 +3,11 @@
 // (/desembolsos/[id]) donde se valida la información antes de desembolsar.
 
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { FolderOpen } from "lucide-react";
 import type { FiltrosSolicitudes } from "@sumo/contracts";
 import type { SolicitudReciente } from "@sumo/core";
+import { obtenerSesion } from "@/lib/auth";
 import { catalogoService, reporteriaService } from "@/lib/core-server";
 import { PageHeader, Tarjeta } from "@/components/panel/ui";
 import { TablaDatos } from "@/components/shared/tabla-datos";
@@ -21,6 +23,8 @@ export default async function DesembolsosPage({
 }) {
   const params = await searchParams;
   const { error, desembolsada } = params;
+  const sesion = await obtenerSesion();
+  if (!sesion) notFound();
 
   const catalogoMotos = await catalogoService().buscarMotos({
     pagina: 1,
@@ -50,7 +54,7 @@ export default async function DesembolsosPage({
     columnas,
   );
 
-  const pendientes = await reporteriaService().solicitudesPaginadas({
+  const pendientes = await reporteriaService().solicitudesPaginadas(sesion.empresaId, {
     query: params.desQuery,
     orden: tableQuery.orden,
     direccion: tableQuery.direccion,

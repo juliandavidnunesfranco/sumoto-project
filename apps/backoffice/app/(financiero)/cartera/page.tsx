@@ -2,8 +2,10 @@
 // fachada ReporteriaService del core — la app jamás toca la base directo.
 
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { BanknoteArrowDown } from "lucide-react";
 import type { FiltrosRecaudoMensual } from "@sumo/contracts";
+import { obtenerSesion } from "@/lib/auth";
 import { reporteriaService } from "@/lib/core-server";
 import { pesos, pesosCompacto } from "@/lib/format";
 import { BarraHorizontal, FilaKpis,
@@ -89,6 +91,8 @@ export default async function DashboardCartera({
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const params = await searchParams;
+  const sesion = await obtenerSesion();
+  if (!sesion) notFound();
 
   const tableQuery = crearTableQuery<RecaudoMensual, FiltrosRecaudoMensual>(
     params,
@@ -100,10 +104,10 @@ export default async function DashboardCartera({
   // La cola de desembolso vive en su propio apartado (/desembolsos): allí
   // se valida el expediente antes de desembolsar. Aquí solo se cuenta.
   const [resumen, porFranja, recaudo, pendientes] = await Promise.all([
-    svc.resumenCartera(),
-    svc.moraPorFranja(),
-    svc.recaudoMensual({ query: params.recQuery, ...tableQuery }),
-    svc.solicitudesPaginadas({
+    svc.resumenCartera(sesion.empresaId),
+    svc.moraPorFranja(sesion.empresaId),
+    svc.recaudoMensual(sesion.empresaId, { query: params.recQuery, ...tableQuery }),
+    svc.solicitudesPaginadas(sesion.empresaId, {
       filtros: { decision: "APROBADO", estado: "evaluada" },
       pagina: 1,
       porPagina: 1,
