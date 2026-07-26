@@ -309,22 +309,24 @@ const COLUMNAS_CARTERA_TIENDA = new Set([
 export class ReporteriaService {
   constructor(private readonly supabase: SupabaseClient) {}
 
-  async resumenCartera(): Promise<ResumenCartera> {
+  async resumenCartera(empresaId: string): Promise<ResumenCartera> {
     const { data, error } = await this.supabase
       .schema("reporteria")
       .from("resumen_cartera")
       .select()
+      .eq("empresa_id", empresaId)
       .single<ResumenCartera>();
     if (error)
       throw new Error(`[reporteria] error leyendo resumen: ${error.message}`);
     return data;
   }
 
-  async moraPorFranja(): Promise<MoraPorFranja[]> {
+  async moraPorFranja(empresaId: string): Promise<MoraPorFranja[]> {
     const { data, error } = await this.supabase
       .schema("reporteria")
       .from("mora_por_franja")
       .select()
+      .eq("empresa_id", empresaId)
       .returns<MoraPorFranja[]>();
     if (error)
       throw new Error(`[reporteria] error leyendo mora: ${error.message}`);
@@ -332,14 +334,17 @@ export class ReporteriaService {
   }
   // Recaudo con filtros genéricos: los filtros se aplican iterando el mapa
   // de estrategias (mismo patrón whitelist que el orden con COLUMNAS_RECAUDO).
-  async recaudoMensual(opciones?: {
-    limite?: number;
-    /** Búsqueda de la tabla sobre cualquier columna (mapa de búsqueda). */
-    query?: string;
-    orden?: string;
-    direccion?: "asc" | "desc";
-    filtros?: FiltrosRecaudoMensual;
-  }): Promise<RecaudoMensual[]> {
+  async recaudoMensual(
+    empresaId: string,
+    opciones?: {
+      limite?: number;
+      /** Búsqueda de la tabla sobre cualquier columna (mapa de búsqueda). */
+      query?: string;
+      orden?: string;
+      direccion?: "asc" | "desc";
+      filtros?: FiltrosRecaudoMensual;
+    },
+  ): Promise<RecaudoMensual[]> {
     const limite = opciones?.limite ?? 6;
     const ordenValido =
       opciones?.orden !== undefined && COLUMNAS_RECAUDO.has(opciones.orden);
@@ -347,7 +352,11 @@ export class ReporteriaService {
     const ascendente = ordenValido && opciones?.direccion === "asc";
 
     let consulta: ConsultaVista = aplicarFiltros(
-      this.supabase.schema("reporteria").from("recaudo_mensual").select(),
+      this.supabase
+        .schema("reporteria")
+        .from("recaudo_mensual")
+        .select()
+        .eq("empresa_id", empresaId),
       MAPA_FILTROS_RECAUDO,
       opciones?.filtros,
     );
@@ -368,12 +377,15 @@ export class ReporteriaService {
     return data ?? [];
   }
 
-  async carteraPorTienda(opciones?: {
-    query?: string;
-    orden?: string;
-    direccion?: "asc" | "desc";
-    filtros?: FiltrosCarteraTienda;
-  }): Promise<CarteraPorTienda[]> {
+  async carteraPorTienda(
+    empresaId: string,
+    opciones?: {
+      query?: string;
+      orden?: string;
+      direccion?: "asc" | "desc";
+      filtros?: FiltrosCarteraTienda;
+    },
+  ): Promise<CarteraPorTienda[]> {
     const ordenValido =
       opciones?.orden !== undefined &&
       COLUMNAS_CARTERA_TIENDA.has(opciones.orden);
@@ -381,7 +393,11 @@ export class ReporteriaService {
     const ascendente = ordenValido && opciones?.direccion === "asc";
 
     let consulta: ConsultaVista = aplicarFiltros(
-      this.supabase.schema("reporteria").from("cartera_por_tienda").select(),
+      this.supabase
+        .schema("reporteria")
+        .from("cartera_por_tienda")
+        .select()
+        .eq("empresa_id", empresaId),
       MAPA_FILTROS_CARTERA_TIENDA,
       opciones?.filtros,
     );
@@ -407,12 +423,14 @@ export class ReporteriaService {
   }
 
   async solicitudesRecientes(
+    empresaId: string,
     opciones: { tiendaId?: string; limite?: number } = {},
   ): Promise<SolicitudReciente[]> {
     let consulta = this.supabase
       .schema("reporteria")
       .from("solicitudes_recientes")
       .select()
+      .eq("empresa_id", empresaId)
       // el ORDER BY de la vista no sobrevive a PostgREST: se pide explícito
       .order("creado_en", { ascending: false })
       .limit(opciones.limite ?? 20);
@@ -432,22 +450,25 @@ export class ReporteriaService {
   // los "casos" de un cliente concreto (vista /clientes/[cedula]); query
   // busca por nombre/cédula; los filtros POR COLUMNA viajan en `filtros`
   // y se aplican vía MAPA_FILTROS_SOLICITUDES (whitelist).
-  async solicitudesPaginadas(opciones: {
-    tiendaId?: string;
-    creadoPor?: string;
-    clienteCedula?: string;
-    query?: string;
-    filtros?: FiltrosSolicitudes;
-    /** Alcance FIJO sobre creado_en como instantes ISO crudos (ej. el "hoy"
-     *  del manager) — independiente del filtro de columna desde/hasta. */
-    desdeFecha?: string;
-    hastaFecha?: string;
-    /** Columna de orden: SOLO nombres de la whitelist (viene de la URL). */
-    orden?: string;
-    direccion?: "asc" | "desc";
-    pagina: number;
-    porPagina: number;
-  }): Promise<PaginaSolicitudes> {
+  async solicitudesPaginadas(
+    empresaId: string,
+    opciones: {
+      tiendaId?: string;
+      creadoPor?: string;
+      clienteCedula?: string;
+      query?: string;
+      filtros?: FiltrosSolicitudes;
+      /** Alcance FIJO sobre creado_en como instantes ISO crudos (ej. el "hoy"
+       *  del manager) — independiente del filtro de columna desde/hasta. */
+      desdeFecha?: string;
+      hastaFecha?: string;
+      /** Columna de orden: SOLO nombres de la whitelist (viene de la URL). */
+      orden?: string;
+      direccion?: "asc" | "desc";
+      pagina: number;
+      porPagina: number;
+    },
+  ): Promise<PaginaSolicitudes> {
     const pagina = Math.max(1, opciones.pagina);
     const porPagina = Math.max(1, opciones.porPagina);
     const desde = (pagina - 1) * porPagina;
@@ -463,6 +484,7 @@ export class ReporteriaService {
       .schema("reporteria")
       .from("solicitudes_recientes")
       .select("*", { count: "exact" })
+      .eq("empresa_id", empresaId)
       .order(orden, { ascending: ascendente })
       // desempate estable para que la paginación no baile entre páginas
       .order("solicitud_id", { ascending: true });
@@ -501,11 +523,15 @@ export class ReporteriaService {
   }
 
   // Desempeño del equipo de una tienda (tabla del manager, estilo v0).
-  async desempenoVendedores(tiendaId: string): Promise<DesempenoVendedor[]> {
+  async desempenoVendedores(
+    empresaId: string,
+    tiendaId: string,
+  ): Promise<DesempenoVendedor[]> {
     const { data, error } = await this.supabase
       .schema("reporteria")
       .from("desempeno_vendedores")
       .select()
+      .eq("empresa_id", empresaId)
       .eq("tienda_id", tiendaId)
       .order("colocacion_centavos", { ascending: false })
       .returns<DesempenoVendedor[]>();
@@ -517,6 +543,7 @@ export class ReporteriaService {
   // Serie diaria de colocación de una tienda (seguimiento del manager:
   // el gráfico mensual y el calendario agregan encima de esta serie).
   async colocacionDiaria(
+    empresaId: string,
     tiendaId: string,
     desdeIso?: string,
     hastaIso?: string,
@@ -525,6 +552,7 @@ export class ReporteriaService {
       .schema("reporteria")
       .from("colocacion_diaria")
       .select()
+      .eq("empresa_id", empresaId)
       .eq("tienda_id", tiendaId)
       .order("fecha");
     if (desdeIso) consulta = consulta.gte("fecha", desdeIso);
