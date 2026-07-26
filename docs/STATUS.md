@@ -669,6 +669,38 @@ Ideas nuevas de Julián (mismo mensaje):
   con una sola página y parecía que faltaba), con botones deshabilitados si
   no hay más páginas. `buscador-motos.tsx` eliminado: quedó `InputBusqueda`
   (compartido) + `selector-por-pagina.tsx`.
+- 2026-07-25 (tarde): sesión de brainstorm (skill superpowers) sobre el
+  pivote de SUMOTO de demo mono-empresa (motos) a producto SaaS
+  multi-tenant vendible por suscripción, catálogo genérico de
+  productos/servicios y motor de políticas de crédito autoconfigurable
+  por empresa. Julián trajo un repo propio de referencia
+  (`github.com/juliandavidnunesfranco/multitenant`) — revisado
+  críticamente: sus docs de arquitectura son boilerplate genérico
+  desconectado del código real y su análisis de cumplimiento es para
+  dispositivos médicos (no aplica), pero su patrón de auditoría genérica
+  por trigger y su idea de RBAC por tabla sí se adoptaron (adaptados).
+  Decisiones fundacionales: aislamiento por RLS + `empresa_id` (NO
+  schema-por-tenant, choca con schema-por-módulo ya establecido);
+  catálogo genérico vía `Producto` + `Opción`/`OpcionValor` dinámicos
+  (inspirado en cómo Medusa v2 modela variantes, investigado contra su
+  doc actual) en vez de EAV puro; motor de políticas generalizando el
+  patrón ya existente de `verificacion.ts` (obligatorios+ponderados) a un
+  catálogo de `criterios_evaluables` curado por la plataforma; RBAC
+  configurable DENTRO de los 5 roles fijos (Julián descartó roles
+  dinámicos por ahora, evita rediseñar route-groups). Spec completa en
+  `docs/superpowers/specs/2026-07-25-saas-multitenant-foundation-design.md`,
+  pendiente de plan de implementación. Sesión 100% de análisis, cero
+  código tocado salvo esta bitácora y el fix de `agenda` en CLAUDE.md.
+- 2026-07-25 (tarde): documentada retroactivamente la existencia del módulo
+  `agenda` (citas de vendedor/manager: reunión o visita, con `clienteCedula`
+  como referencia suave al módulo `clientes`) — existía en código con tests
+  desde la semana del 07-14 pero nunca se agregó a la lista de módulos de
+  CLAUDE.md ni se registró como decisión de arquitectura, violando la propia
+  regla del proyecto de documentar decisiones nuevas. Corregido en CLAUDE.md:
+  domain puro (`Cita`/`crearCita`) sin `application/` ni `subscribers/` —
+  crear una cita es una escritura simple sin pasos multi-módulo que
+  compensar (no amerita saga) y hoy no reacciona a eventos de otros módulos.
+  Detectado en auditoría de inconsistencias solicitada por Julián.
 - 2026-07-14 (madrugada): aclarado el flujo de aprobación/desembolso con
   Julián — el vendedor NO aprueba nada: la decisión la emite el motor
   automáticamente al evaluar (APROBADO/NEGADO/REVISION_MANUAL). El
