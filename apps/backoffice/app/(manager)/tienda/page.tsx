@@ -52,9 +52,9 @@ export default async function TiendaPage({
   // crearTableQuery lee esas columnas.
   const [porTienda, desempeno, colocacion, catalogoMotos] = sesion?.tiendaId
     ? await Promise.all([
-        svc.carteraPorTienda(),
-        svc.desempenoVendedores(sesion.tiendaId),
-        svc.colocacionDiaria(sesion.tiendaId, desde),
+        svc.carteraPorTienda(sesion.empresaId),
+        svc.desempenoVendedores(sesion.empresaId, sesion.tiendaId),
+        svc.colocacionDiaria(sesion.empresaId, sesion.tiendaId, desde),
         catalogoService().buscarMotos({ pagina: 1, porPagina: 50 }),
       ])
     : [[], [], [], { items: [], total: 0 }];
@@ -71,7 +71,7 @@ export default async function TiendaPage({
   );
 
   const { items: solicitudes, total } = sesion?.tiendaId
-    ? await svc.solicitudesPaginadas({
+    ? await svc.solicitudesPaginadas(sesion.empresaId, {
         tiendaId: sesion.tiendaId,
         query: params.solQuery,
         ...tableQuery,

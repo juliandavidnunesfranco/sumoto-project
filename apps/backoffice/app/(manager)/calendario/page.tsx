@@ -53,6 +53,7 @@ export default async function CalendarioPage({
           primerDiaSiguiente.toISOString(),
         ),
         reporteriaService().colocacionDiaria(
+          sesion.empresaId,
           sesion.tiendaId,
           claveDia(primerDia),
           claveDia(primerDiaSiguiente),

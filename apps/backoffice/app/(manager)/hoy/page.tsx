@@ -47,10 +47,10 @@ export default async function HoyPage({
   const [citas, colocacion, desempeno, catalogoMotos, porTienda] = sesion?.tiendaId
     ? await Promise.all([
         agendaService().citasEntre(sesion.tiendaId, inicioDia, finDia),
-        reporteriaService().colocacionDiaria(sesion.tiendaId, hoyIso, mananaIso),
-        reporteriaService().desempenoVendedores(sesion.tiendaId),
+        reporteriaService().colocacionDiaria(sesion.empresaId, sesion.tiendaId, hoyIso, mananaIso),
+        reporteriaService().desempenoVendedores(sesion.empresaId, sesion.tiendaId),
         catalogoService().buscarMotos({ pagina: 1, porPagina: 50 }),
-        reporteriaService().carteraPorTienda(),
+        reporteriaService().carteraPorTienda(sesion.empresaId),
       ])
     : [[], [], [], { items: [], total: 0 }, []];
 
@@ -81,7 +81,7 @@ export default async function HoyPage({
   );
 
   const { items: solicitudes, total } = sesion?.tiendaId
-    ? await reporteriaService().solicitudesPaginadas({
+    ? await reporteriaService().solicitudesPaginadas(sesion.empresaId, {
         tiendaId: sesion.tiendaId,
         desdeFecha: inicioDia,
         hastaFecha: finDia,
