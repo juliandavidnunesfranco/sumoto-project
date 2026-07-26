@@ -1289,4 +1289,33 @@ Ideas nuevas de Julián (mismo mensaje):
   rutas), recorrido manual en navegador confirmando ambos síntomas
   resueltos (`/cartera` como financiero carga sin error; `/solicitudes`
   como vendedor ya no muestra clientes de otras empresas).
+- 2026-07-26: FASE 2 de multi-tenencia — DISEÑADA Y PLANEADA (todavía no
+  ejecutada). Spec: `docs/superpowers/specs/2026-07-26-fase2-multitenencia-design.md`.
+  Plan: `docs/superpowers/plans/2026-07-26-fase2-multitenencia.md` (17
+  tareas). Cierra el gap de `empresa_id`/`tienda_id` en las 13 tablas de
+  los 5 módulos que faltaban: `originacion` (solicitudes, decisiones,
+  verificaciones, productos_credito), `cartera`+`links` (creditos, cuotas,
+  pagos, aplicaciones_pago, solicitud_credito), `contabilidad` (asientos,
+  partidas — cierra también el gap `asientos_recientes` que dejó pendiente
+  la spec de `reporteria`), `catalogo` (motos), `agenda` (citas).
+  Decisiones clave del diseño: triggers `BEFORE INSERT` de cascada que
+  DERIVAN `empresa_id`/`tienda_id` del padre real (vía FK) y VALIDAN
+  (rechazan con excepción, nunca sobrescriben silenciosamente) si la app
+  ya mandó un valor que no coincide — incluye 2 casos de doble padre
+  (`aplicaciones_pago` vs pagos+cuotas, `links.solicitud_credito` vs
+  solicitudes+creditos) con validación cruzada entre ambos padres. Tablas
+  raíz sin padre derivable (`productos_credito`, `motos`) llevan
+  `empresaId` explícito de la aplicación, embebido en el DTO de creación
+  (mismo patrón que `Cliente`/`DatosCliente` de fase 1), no como parámetro
+  separado. `contabilidad.asientos` no tiene FK real a `cartera` (regla de
+  "nunca FKs cruzadas") — el suscriptor de eventos resuelve `empresa_id`
+  con una consulta propia a `tiendas` usando el `tiendaId` que ya viaja en
+  los payloads de `cartera.credito.desembolsado`/`cartera.pago.registrado`.
+  Decisión explícita de Julián: "regional" (nivel intermedio entre empresa
+  y tienda) queda FUERA de esta fase y de cualquier fase planeada — el
+  filtrado nacional→tienda que ya permite `reporteria` (parámetro
+  `tiendaId` opcional) es suficiente por ahora. Siguiente: ejecutar el
+  plan con `subagent-driven-development`, módulo por módulo, en el orden
+  `originacion` → `cartera`+`links` → `contabilidad` → `catalogo` →
+  `agenda`.
 - (agregar nuevas decisiones aquí con fecha)
