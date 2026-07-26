@@ -33,6 +33,7 @@ export default async function BuscarClientes({
     puedeBuscar && termino.length >= 2
       ? await clientesService().buscarClientes(
           termino,
+          sesion.empresaId,
           alcanceNacional ? undefined : sesion.tiendaId!,
         )
       : [];

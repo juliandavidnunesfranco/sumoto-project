@@ -21,6 +21,7 @@ import {
   clientesService,
   originacionService,
 } from "@/lib/core-server";
+import { obtenerSesion } from "@/lib/auth";
 import { pesos } from "@/lib/format";
 import { EstadoBadge, FilaKpis, Kpi, PageHeader, Tarjeta } from "@/components/panel/ui";
 import { Button } from "@/components/ui/button";
@@ -56,13 +57,16 @@ export default async function ExpedientePage({
   const { solicitudId } = await params;
   const avisos = await searchParams;
 
+  const sesion = await obtenerSesion();
+  if (!sesion) notFound();
+
   const par = await originacionService().solicitudEvaluada(solicitudId);
   if (!par) notFound();
 
   const [verificacion, documentos, cliente, moto, producto] = await Promise.all([
     originacionService().verificacionDe(solicitudId),
     originacionService().listarDocumentos(solicitudId),
-    clientesService().buscarPorId(par.solicitud.clienteId),
+    clientesService().buscarPorId(par.solicitud.clienteId, sesion.empresaId),
     catalogoService().buscarMotoPorId(par.solicitud.motoId),
     originacionService().buscarProducto(par.solicitud.productoId),
   ]);

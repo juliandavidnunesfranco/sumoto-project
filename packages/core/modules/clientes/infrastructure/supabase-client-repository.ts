@@ -24,12 +24,13 @@ export class RepositorioClientesSupabase implements RepositorioClientes {
     return aCliente(data);
   }
 
-  async buscarPorCedula(cedula: string): Promise<Cliente | null> {
+  async buscarPorCedula(cedula: string, empresaId: string): Promise<Cliente | null> {
     const { data, error } = await this.supabase
       .schema("clientes")
       .from("clientes")
       .select()
       .eq("cedula", cedula)
+      .eq("empresa_id", empresaId)
       .maybeSingle<FilaCliente>();
 
     if (error) {
@@ -38,12 +39,13 @@ export class RepositorioClientesSupabase implements RepositorioClientes {
     return data ? aCliente(data) : null;
   }
 
-  async buscarPorId(id: string): Promise<Cliente | null> {
+  async buscarPorId(id: string, empresaId: string): Promise<Cliente | null> {
     const { data, error } = await this.supabase
       .schema("clientes")
       .from("clientes")
       .select()
       .eq("id", id)
+      .eq("empresa_id", empresaId)
       .maybeSingle<FilaCliente>();
 
     if (error) {
@@ -52,7 +54,7 @@ export class RepositorioClientesSupabase implements RepositorioClientes {
     return data ? aCliente(data) : null;
   }
 
-  async buscar(query: string, tiendaId?: string): Promise<Cliente[]> {
+  async buscar(query: string, empresaId: string, tiendaId?: string): Promise<Cliente[]> {
     // Sanea metacaracteres del filtro PostgREST (, ( ) * \ . " ') antes de
     // interpolar: sin esto un término como `x,tienda_id.eq.otra-tienda` podría
     // inyectar condiciones extra al .or() y saltarse el acotamiento por tienda.
@@ -63,6 +65,7 @@ export class RepositorioClientesSupabase implements RepositorioClientes {
       .schema("clientes")
       .from("clientes")
       .select()
+      .eq("empresa_id", empresaId)
       .or(`nombres.ilike.%${limpia}%,apellidos.ilike.%${limpia}%,cedula.ilike.%${limpia}%`)
       .order("nombres")
       .limit(8);

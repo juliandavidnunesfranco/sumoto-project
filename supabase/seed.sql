@@ -4,10 +4,14 @@
 -- y 18 créditos con historias variadas: al día, mora 30, 60 y 90+.
 -- =============================================================================
 
+-- 0. Empresa (SUMOTO es la empresa #1 del sistema, dogfooding) --------------
+insert into public.empresas (id, nombre, slug, plan) values
+  ('d0000000-0000-4000-8000-000000000001', 'SUMOTO', 'sumoto', 'demo');
+
 -- 1. Tiendas ------------------------------------------------------------------
-insert into public.tiendas (id, nombre, ciudad, meta_colocacion_centavos) values
-  ('11111111-1111-4111-8111-111111111111', 'SUMOTO Bogotá Norte', 'Bogotá', 2500000000),
-  ('22222222-2222-4222-8222-222222222222', 'SUMOTO Medellín Centro', 'Medellín', 2000000000);
+insert into public.tiendas (id, nombre, ciudad, meta_colocacion_centavos, empresa_id) values
+  ('11111111-1111-4111-8111-111111111111', 'SUMOTO Bogotá Norte', 'Bogotá', 2500000000, 'd0000000-0000-4000-8000-000000000001'),
+  ('22222222-2222-4222-8222-222222222222', 'SUMOTO Medellín Centro', 'Medellín', 2000000000, 'd0000000-0000-4000-8000-000000000001');
 
 -- 2. Usuarios por rol (auth) + perfiles ----------------------------------------
 do $$
@@ -43,9 +47,10 @@ begin
                          'email_verified', true),
       'email', now(), now(), now()
     );
-    insert into public.perfiles (user_id, rol, tienda_id, nombre)
+    insert into public.perfiles (user_id, rol, tienda_id, nombre, empresa_id)
     values ((u->>'id')::uuid, (u->>'rol')::public.rol_usuario,
-            (u->>'tienda')::uuid, u->>'nombre');
+            (u->>'tienda')::uuid, u->>'nombre',
+            'd0000000-0000-4000-8000-000000000001');
   end loop;
 end $$;
 
@@ -123,12 +128,13 @@ begin
     -- cliente
     insert into clientes.clientes
       (cedula, nombres, apellidos, fecha_nacimiento, telefono, ciudad,
-       ingresos_declarados_centavos, fuente_identidad, tienda_id)
+       ingresos_declarados_centavos, fuente_identidad, tienda_id, empresa_id)
     values
       ((1000000000 + i)::text, nombres[i], apellidos[i] || ' ' || apellidos[1 + (i % 18)],
        ('1975-01-15'::date + (i * 400 || ' days')::interval)::date,
        '31055512' || lpad(i::text, 2, '0'), case when i % 2 = 0 then 'Bogotá' else 'Medellín' end,
-       ingresos, case when i % 3 = 0 then 'escaner' else 'entrada_manual' end, tienda)
+       ingresos, case when i % 3 = 0 then 'escaner' else 'entrada_manual' end, tienda,
+       'd0000000-0000-4000-8000-000000000001')
     returning id into v_cliente;
 
     -- moto financiada (cualquiera del catálogo ya sembrado arriba)

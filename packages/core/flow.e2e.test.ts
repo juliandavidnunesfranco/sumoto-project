@@ -19,6 +19,7 @@ const supabase = createClient(
 );
 
 const TIENDA = "11111111-1111-4111-8111-111111111111";
+const EMPRESA = "d0000000-0000-4000-8000-000000000001";
 // último dígito 8 → score alto (APROBADO); penúltimo 4 → sin mora en buró
 const CEDULA = "1099999948";
 
@@ -36,6 +37,7 @@ describe("flujo completo de negocio contra Supabase local", () => {
       entradaCruda: { codigo: CEDULA },
       ingresosDeclaradosCentavos: 300_000_000,
       tiendaId: TIENDA,
+      empresaId: EMPRESA,
     });
     expect(registro.ok).toBe(true);
     if (!registro.ok) return;

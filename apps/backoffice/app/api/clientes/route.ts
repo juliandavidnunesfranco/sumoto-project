@@ -25,6 +25,7 @@ export async function POST(request: Request) {
       cuerpo.fuente === "escaner" ? { codigo: cuerpo.codigo } : cuerpo.datos,
     ingresosDeclaradosCentavos: cuerpo.ingresosDeclaradosCentavos,
     tiendaId: sesion.tiendaId,
+    empresaId: sesion.empresaId,
   });
 
   if (!resultado.ok) {
