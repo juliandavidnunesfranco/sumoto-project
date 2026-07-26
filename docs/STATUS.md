@@ -398,25 +398,36 @@ módulo + RLS acotada + dominio/repositorio/caso de uso/fachada recibiendo
    el resto de vistas de `reporteria`) antes de sembrar una segunda empresa
    en producción.
 
-### Deuda técnica detectada en revisión final de multi-tenencia (2026-07-25)
+### Deuda técnica detectada en revisión final de multi-tenencia — RESUELTA (2026-07-25)
 Dos huecos estructurales que el revisor final marcó como "primeras tareas de
-la próxima rama", no bloqueantes para esta:
-1. `packages/core` no tiene `tsconfig.json` — `pnpm --filter @sumo/core exec
-   tsc --noEmit` no tipa nada (confirmado: solo imprime el texto de ayuda de
-   `tsc`, no una lista de errores). Ningún gate del repo detecta hoy que un
-   cambio de firma solo-en-core rompa un test file del core (así pasó
-   desapercibido el hueco de `flow.e2e.test.ts` en esta misma rama, hasta
-   que el test se corrió). Agregar `packages/core/tsconfig.json` + script
-   `typecheck` que cubra TODO `.ts` incluyendo `*.test.ts`/`*.e2e.test.ts`,
-   antes de arrancar fase 2.
-2. La suite `aislamiento-tenant.e2e.test.ts` solo prueba que el filtro
-   `empresa_id` a nivel de repositorio funciona (resuelve servicios vía
-   `service_role`, que se salta RLS por completo) — no dice nada de si las
-   políticas RLS en sí (`tiendas_lectura`, `perfiles_lectura_gestion`, las
-   tres `clientes_*`) aíslan de verdad a un cliente `authenticated` real con
-   la anon key. Agregar un test a nivel RLS (login como usuario de la
-   empresa rival con anon key, verificar cero filas de datos SUMOTO) antes
-   de replicar el patrón en los 5 módulos restantes de fase 2.
+la próxima rama", ambos cerrados el mismo día con un plan propio
+(`docs/superpowers/plans/2026-07-25-core-typecheck-y-test-rls.md`):
+1. ✅ **HECHO**: `packages/core` no tenía `tsconfig.json` — `pnpm --filter
+   @sumo/core exec tsc --noEmit` no tipaba nada (confirmado: solo imprimía
+   el texto de ayuda de `tsc`, no una lista de errores). Ningún gate del
+   repo detectaba que un cambio de firma solo-en-core rompiera un test file
+   del core (así pasó desapercibido el hueco de `flow.e2e.test.ts` en la
+   rama anterior, hasta que el test se corrió). Agregado
+   `packages/core/tsconfig.json` (strict, cubre TODO `.ts` incluyendo
+   `*.test.ts`/`*.e2e.test.ts`) + script `typecheck`; primera corrida real
+   encontró 8 tipos incompletos en fixtures de test (nunca en código de
+   producción) — corregidos con datos reales, cero `@ts-ignore`/`as any`.
+2. ✅ **HECHO**: la suite `aislamiento-tenant.e2e.test.ts` solo probaba que
+   el filtro `empresa_id` a nivel de repositorio funciona (resuelve
+   servicios vía `service_role`, que se salta RLS por completo) — no decía
+   nada de si las políticas RLS en sí aíslan de verdad a un cliente
+   `authenticated` real. Agregado `packages/core/aislamiento-rls.e2e.test.ts`:
+   login real con la llave anon (`signInWithPassword`, el mismo camino que
+   usa producción en `proxy.ts`/`lib/auth.ts`) como `vendedor@sumoto.co`,
+   verificando cero filas de la empresa rival directo contra
+   `clientes.clientes`/`public.tiendas` — sin pasar por `ClientesService`.
+   Control negativo real: RLS desactivada momentáneamente en
+   `clientes.clientes`, confirmado que el test FALLA (fuga real observada),
+   reactivada, confirmado que vuelve a pasar.
+
+**Sigue pendiente** (fuera de este plan, ya en el backlog de arriba):
+`reporteria` sin scoping por `empresa_id` — plan propio, tamaño de módulo
+completo, antes de fase 2.
 
 ### ~~Para mañana 2026-07-17~~ ✅ HECHO 2026-07-17 (mañana)
 1. ~~Búsqueda en TODAS las tablas, sobre CUALQUIER columna~~ ✅ Opción A
@@ -1221,4 +1232,28 @@ Ideas nuevas de Julián (mismo mensaje):
   cliente en pantalla). Siguiente: replicar el patrón en `originacion`,
   `cartera`+`links`, `contabilidad`, `catalogo`, `agenda` (plan separado,
   ver "Siguiente").
+- 2026-07-25 (noche): cerrada la deuda técnica que dejó el review final de
+  la fase 1 de multi-tenencia (plan propio:
+  `docs/superpowers/plans/2026-07-25-core-typecheck-y-test-rls.md`).
+  `packages/core/tsconfig.json` + script `typecheck` (primer typecheck
+  real de la vida del paquete — encontró 8 tipos incompletos en fixtures
+  de test, nunca en código de producción, corregidos con datos reales).
+  `aislamiento-rls.e2e.test.ts` nuevo: login real con la llave anon
+  (`signInWithPassword` como `vendedor@sumoto.co`, el mismo camino que
+  usa producción) confirmando que las políticas RLS por sí solas
+  bloquean el cruce entre empresas — no solo el filtro del repositorio
+  (eso ya lo cubre `aislamiento-tenant.e2e.test.ts`). Control negativo
+  real: RLS desactivada en `clientes.clientes` con SQL directo, confirmado
+  que el test FALLA (fuga real observada, UUID del cliente rival
+  filtrado), reactivada, confirmado que vuelve a pasar. Nota operativa:
+  esta ronda se ejecutó con `subagent-driven-development` pero el primer
+  subagente terminó commiteando por accidente en `main` directo en vez
+  del worktree aislado (instrucción en texto plano no fuerza el `cd` real
+  de un subagente) — Julián autorizó explícitamente seguir en `main`
+  directo para el resto de este plan chico; un segundo subagente agotó su
+  límite de sesión a mitad de tarea y el controller tomó el relevo
+  directamente para terminar de forma segura (RLS quedó verificada
+  reactivada en todo momento). 138/138 unit + 7/7 e2e (3 archivos) en
+  verde. Pendiente (backlog, plan propio): `reporteria` sin scoping por
+  `empresa_id`.
 - (agregar nuevas decisiones aquí con fecha)
