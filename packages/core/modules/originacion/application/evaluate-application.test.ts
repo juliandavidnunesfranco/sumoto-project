@@ -33,6 +33,8 @@ const REPORTE_SANO: ReporteRiesgo = {
   score: 720,
   moraMaximaDiasUltimos12Meses: 0,
   endeudamientoCentavos: 0,
+  reportesNegativos: false,
+  vectoresPago: [],
   consultadoEn: "2026-07-11T10:00:00Z",
 };
 
@@ -55,6 +57,12 @@ class ProductosFijos implements RepositorioProductos {
   }
   async listarActivos() {
     return [PRODUCTO];
+  }
+  async guardar(producto: Omit<ProductoCredito, "id">) {
+    return { ...producto, id: "prod-nuevo" };
+  }
+  async actualizarReglas(producto: ProductoCredito) {
+    return producto;
   }
 }
 
@@ -84,6 +92,9 @@ class SolicitudesEnMemoria implements RepositorioSolicitudes {
   }
   async buscarDecision() {
     return this.decisiones[this.decisiones.length - 1] ?? null;
+  }
+  async reporteDeRiesgo() {
+    return null;
   }
 }
 

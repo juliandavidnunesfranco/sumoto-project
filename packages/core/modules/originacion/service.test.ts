@@ -16,7 +16,11 @@ const PRODUCTO: ProductoCredito = {
   tasaEA: 0.245,
   plazoMinMeses: 6,
   plazoMaxMeses: 48,
-  reglasDecision: { cuotaMaximaPorcentajeIngreso: 0.35 },
+  reglasDecision: {
+    scoreMinimo: 600,
+    cuotaMaximaPorcentajeIngreso: 0.35,
+    ltvMaximo: 0.9,
+  },
   activo: true,
 };
 
@@ -38,6 +42,7 @@ const SOLICITUD: Solicitud = {
 const DECISION: Decision = {
   resultado: "APROBADO",
   razones: ["cumple políticas"],
+  score: 720,
   cuotaEstimadaCentavos: 30_000_000,
 };
 

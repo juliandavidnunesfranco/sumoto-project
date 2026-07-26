@@ -85,7 +85,7 @@ describe("validarProducto / crearProducto", () => {
 });
 
 describe("actualizarReglas", () => {
-  const PRODUCTO: ProductoCredito = { id: "prod-1", ...DATOS_OK };
+  const PRODUCTO: ProductoCredito = { id: "prod-1", ...DATOS_OK, activo: true };
 
   it("reemplaza las reglas cuando son válidas", () => {
     const nuevas: ReglasDecision = { ...REGLAS_OK, scoreMinimo: 680, scoreRevision: 720 };

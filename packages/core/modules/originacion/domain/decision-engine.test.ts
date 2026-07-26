@@ -42,6 +42,8 @@ const REPORTE_SANO: ReporteRiesgo = {
   score: 720,
   moraMaximaDiasUltimos12Meses: 0,
   endeudamientoCentavos: 0,
+  reportesNegativos: false,
+  vectoresPago: [],
   consultadoEn: "2026-07-11T10:00:00Z",
 };
 
