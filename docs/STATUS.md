@@ -1256,4 +1256,37 @@ Ideas nuevas de Julián (mismo mensaje):
   reactivada en todo momento). 138/138 unit + 7/7 e2e (3 archivos) en
   verde. Pendiente (backlog, plan propio): `reporteria` sin scoping por
   `empresa_id`.
+- 2026-07-26: REPORTERIA con `empresa_id` — cierra la fuga latente que dejó
+  la fase 1 (plan propio:
+  `docs/superpowers/plans/2026-07-26-reporteria-empresa-id.md`). Reportado
+  en vivo por Julián como dos síntomas del MISMO bug: `/cartera` crasheaba
+  ("Cannot coerce the result to a single JSON object" — `resumen_cartera`
+  ahora agrupa por empresa y devuelve varias filas) y el vendedor veía en
+  "Mis solicitudes" un cliente ("Rita Rival") de OTRA empresa (fixture de
+  e2e sin limpiar, visible porque `solicitudesPaginadas` no acotaba por
+  empresa). Causa raíz real: una migración (`20260726000000`) ya estaba
+  APLICADA en la DB local (8 vistas con `empresa_id` vía join a
+  `public.tiendas`) pero el `.sql` nunca se versionó — drift entre DB y
+  repo — y `ReporteriaService` seguía consultando sin el filtro. Migración
+  recuperada verificándola contra `pg_get_viewdef` real (sin cambios de
+  contenido); `empresaId` ahora obligatorio como primer parámetro en los 8
+  métodos de `ReporteriaService` (`resumenCartera`, `moraPorFranja`,
+  `recaudoMensual`, `carteraPorTienda`, `solicitudesRecientes`,
+  `solicitudesPaginadas`, `desempenoVendedores`, `colocacionDiaria`);
+  `asientos_recientes` queda FUERA a propósito — gap documentado para la
+  fase 2 de `cartera`+`contabilidad` (`cartera.creditos`/
+  `originacion.solicitudes` todavía no tienen `empresa_id` propio ni RLS
+  que lo conozca). 10 call sites del backoffice actualizados (3 ganaron
+  `obtenerSesion()` nueva: `cartera/page.tsx`, `desembolsos/page.tsx`,
+  `ceo/page.tsx`, que antes dependían 100% del guard de rol del layout).
+  Suite `aislamiento-reporteria.e2e.test.ts` nueva (3 tests) — aislamiento
+  a nivel de REPOSITORIO, no RLS (ver nota de la fase 1: las tablas de
+  origen no tienen `empresa_id` propio todavía); control negativo real
+  (comentar el `.eq("empresa_id", ...)` de `carteraPorTienda` hace fallar
+  el test con la tienda rival filtrada, revertido vuelve a pasar).
+  VERIFICACIÓN FINAL: 138/138 unit, 4/4 archivos e2e (12 tests) en verde,
+  typecheck limpio (core + backoffice), build de producción exitoso (24
+  rutas), recorrido manual en navegador confirmando ambos síntomas
+  resueltos (`/cartera` como financiero carga sin error; `/solicitudes`
+  como vendedor ya no muestra clientes de otras empresas).
 - (agregar nuevas decisiones aquí con fecha)
