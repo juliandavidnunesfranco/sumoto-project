@@ -383,6 +383,40 @@ módulo + RLS acotada + dominio/repositorio/caso de uso/fachada recibiendo
 4. `catalogo` (motos — dominio puro, sin application/, ver si el patrón
    aplica igual sin caso de uso de por medio)
 5. `agenda`
+6. `reporteria` — **fuga cross-tenant real detectada en la revisión final
+   de esta rama (2026-07-25), hoy latente porque solo existe una empresa
+   sembrada, pero explota en cuanto exista una segunda**: las vistas
+   `reporteria.solicitudes_recientes` y `reporteria.desempeno_vendedores`
+   (`supabase/migrations/`) hacen JOIN con `clientes.clientes` y exponen
+   `cliente_nombre` etc., acotadas SOLO por `tienda_id` — nunca por
+   `empresa_id`. `ReporteriaService`
+   (`packages/core/modules/reporteria/service.ts`) corre con `service_role`,
+   que se salta RLS por completo. En cuanto exista una segunda empresa, un
+   rol de alcance nacional (financiero/contable/ceo) vería datos de
+   clientes de OTRA empresa a través de `/ceo`, `/desembolsos` y pantallas
+   relacionadas. Replicar el patrón de `empresa_id` en estas vistas (y en
+   el resto de vistas de `reporteria`) antes de sembrar una segunda empresa
+   en producción.
+
+### Deuda técnica detectada en revisión final de multi-tenencia (2026-07-25)
+Dos huecos estructurales que el revisor final marcó como "primeras tareas de
+la próxima rama", no bloqueantes para esta:
+1. `packages/core` no tiene `tsconfig.json` — `pnpm --filter @sumo/core exec
+   tsc --noEmit` no tipa nada (confirmado: solo imprime el texto de ayuda de
+   `tsc`, no una lista de errores). Ningún gate del repo detecta hoy que un
+   cambio de firma solo-en-core rompa un test file del core (así pasó
+   desapercibido el hueco de `flow.e2e.test.ts` en esta misma rama, hasta
+   que el test se corrió). Agregar `packages/core/tsconfig.json` + script
+   `typecheck` que cubra TODO `.ts` incluyendo `*.test.ts`/`*.e2e.test.ts`,
+   antes de arrancar fase 2.
+2. La suite `aislamiento-tenant.e2e.test.ts` solo prueba que el filtro
+   `empresa_id` a nivel de repositorio funciona (resuelve servicios vía
+   `service_role`, que se salta RLS por completo) — no dice nada de si las
+   políticas RLS en sí (`tiendas_lectura`, `perfiles_lectura_gestion`, las
+   tres `clientes_*`) aíslan de verdad a un cliente `authenticated` real con
+   la anon key. Agregar un test a nivel RLS (login como usuario de la
+   empresa rival con anon key, verificar cero filas de datos SUMOTO) antes
+   de replicar el patrón en los 5 módulos restantes de fase 2.
 
 ### ~~Para mañana 2026-07-17~~ ✅ HECHO 2026-07-17 (mañana)
 1. ~~Búsqueda en TODAS las tablas, sobre CUALQUIER columna~~ ✅ Opción A
